@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/build-worker.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "seed:supabase": "node --env-file=.env.local scripts/seed-supabase.mjs"
@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@openai/sites-vite-plugin": "^0.2.0",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
