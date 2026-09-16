@@ -6,6 +6,7 @@ import logo from "../assets/AEI.png";
 const pageLinks = [
   { label: "Accueil", to: "/" },
   { label: "Clubs de l’ENIAD", to: "/clubs" },
+  { label: "Projets étudiants", to: "/projets" },
   { label: "Cours", to: "/cours" },
   { label: "Colocation", to: "/colocation" },
   { label: "Marketplace", to: "/marketplace" },

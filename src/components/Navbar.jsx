@@ -53,7 +53,7 @@ export default function MainNavigation({ children }) {
       image: colocation,
       to: "/mes-annonces",
     },
-    { name: "Mes cours favoris", image: favoris, to: "/favori" },
+    { name: "Mes favoris", image: favoris, to: "/favori" },
     { name: "Mes projets déposés", image: gestion, to: "/mes-projets" },
     { name: "Évènements / Agenda", image: evenement, to: "/evenements" },
     { name: "Stages & Opportunités", image: stage, to: "/stages-opportunites" },
@@ -65,6 +65,7 @@ export default function MainNavigation({ children }) {
   const topLinks = [
     { name: "Accueil", to: "/" },
     { name: "Clubs", to: "/clubs" },
+    { name: "Projets", to: "/projets" },
     { name: "Cours", to: "/cours" },
     { name: "Colocation", to: "/colocation" },
     { name: "Marketplace", to: "/marketplace" },
@@ -115,7 +116,7 @@ export default function MainNavigation({ children }) {
         </Link>
 
         {/* Top links (mobile / tablette) */}
-        <ul className="mb-6 space-y-1 border-b border-slate-200 pb-6 md:hidden">
+        <ul className="mb-6 space-y-1 border-b border-slate-200 pb-6 lg:hidden">
           {topLinks.map((link, index) => (
             <li
               key={index}
@@ -181,7 +182,7 @@ export default function MainNavigation({ children }) {
           </div>
 
           {/* Navigation desktop */}
-          <nav className="hidden items-center gap-1 text-sm font-semibold md:flex">
+          <nav className="hidden items-center gap-1 text-sm font-semibold lg:flex">
             {topLinks.map((link, index) => (
               <Link
                 key={index}

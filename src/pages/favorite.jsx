@@ -1,132 +1,180 @@
-import { useState } from "react";
-import {
-  Search,
-  Download,
-  X,
-  Heart,
-  ChevronLeft,
-  ChevronRight,
-  LoaderCircle,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowRight,
+  BookOpen,
+  Briefcase,
+  Download,
+  Heart,
+  LoaderCircle,
+  MapPin,
+  Megaphone,
+  Search,
+  Trash2,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import FavoriteCourses from "../data/FavoriteCourses";
+import FavoriteCourses from "@/data/FavoriteCourses";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
-import { coursesApi } from "@/services/portalApi";
+import { favoritesApi } from "@/services/portalApi";
+
+const fallbackFavorites = FavoriteCourses.map((course) => ({
+  ...course,
+  favoriteType: "course",
+}));
+
+const filters = [
+  { value: "all", label: "Tous" },
+  { value: "course", label: "Cours" },
+  { value: "opportunity", label: "Opportunités" },
+  { value: "advertisement", label: "Bons plans" },
+];
+
+const typeMeta = {
+  course: {
+    label: "Cours",
+    icon: BookOpen,
+    accent: "bg-sky-50 text-sky-700",
+  },
+  opportunity: {
+    label: "Opportunité",
+    icon: Briefcase,
+    accent: "bg-indigo-50 text-indigo-700",
+  },
+  advertisement: {
+    label: "Bon plan",
+    icon: Megaphone,
+    accent: "bg-amber-50 text-amber-700",
+  },
+};
 
 export default function FavoritePage() {
-  const { data: remoteFavorites, loading, error, setData } = usePortalCollection(
-    coursesApi.listFavorites,
-    FavoriteCourses
+  const { data: favorites, loading, error, setData } = usePortalCollection(
+    favoritesApi.list,
+    fallbackFavorites
   );
-  const [actionError, setActionError] = useState("");
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("Tous");
-  const [niveauFilter, setNiveauFilter] = useState("Tous");
-  const [page, setPage] = useState(1);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [actionError, setActionError] = useState("");
 
-  const favoritesPerPage = 6;
+  const counts = useMemo(
+    () =>
+      favorites.reduce(
+        (result, item) => ({
+          ...result,
+          [item.favoriteType]: (result[item.favoriteType] || 0) + 1,
+        }),
+        {}
+      ),
+    [favorites]
+  );
 
-  const categories = ["Tous", "Math", "Stats", "IA"];
-  const niveaux = ["Tous", "CP1", "CP2", "CI"];
-
-  // Filtrage
-  const filtered = remoteFavorites.filter((c) => {
-    const matchSearch = c.titre.toLowerCase().includes(search.toLowerCase());
-    const matchCat =
-      categoryFilter === "Tous" || c.categorie === categoryFilter;
-    const matchNiv = niveauFilter === "Tous" || c.niveau === niveauFilter;
-    return matchSearch && matchCat && matchNiv;
+  const filteredFavorites = favorites.filter((item) => {
+    const searchable = `${item.titre || item.title || ""} ${
+      item.description || ""
+    } ${item.entreprise || ""} ${item.categorie || ""}`.toLowerCase();
+    return (
+      (activeFilter === "all" || item.favoriteType === activeFilter) &&
+      searchable.includes(search.toLowerCase())
+    );
   });
 
-  const totalPages = Math.ceil(filtered.length / favoritesPerPage);
+  const removeFavorite = async (item) => {
+    const snapshot = favorites;
+    setActionError("");
+    setData((current) =>
+      current.filter(
+        (favorite) =>
+          !(
+            favorite.id === item.id &&
+            favorite.favoriteType === item.favoriteType
+          )
+      )
+    );
 
-  const paginated = filtered.slice(
-    (page - 1) * favoritesPerPage,
-    page * favoritesPerPage
-  );
+    try {
+      await favoritesApi.remove(item);
+    } catch (removeError) {
+      setData(snapshot);
+      setActionError(
+        removeError.message || "Le favori n’a pas pu être supprimé."
+      );
+    }
+  };
 
   return (
     <div className="portal-page">
       <PageHeader
         icon={Heart}
-        eyebrow="Ma bibliothèque"
-        title="Mes cours favoris"
-        description="Retrouvez les supports que vous avez enregistrés pour y accéder rapidement."
+        eyebrow="Ma sélection"
+        title="Mes favoris"
+        description="Retrouvez au même endroit vos cours, opportunités et bons plans enregistrés."
       />
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        {filters.slice(1).map((filter) => {
+          const meta = typeMeta[filter.value];
+          const TypeIcon = meta.icon;
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setActiveFilter(filter.value)}
+              className={`flex items-center justify-between rounded-2xl border p-4 text-left transition ${
+                activeFilter === filter.value
+                  ? "border-sky-300 bg-sky-50 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-sky-200"
+              }`}
+            >
+              <span>
+                <span className="block text-sm font-semibold text-slate-600">
+                  {filter.label}
+                </span>
+                <span className="mt-1 block text-2xl font-bold text-slate-950">
+                  {counts[filter.value] || 0}
+                </span>
+              </span>
+              <span className={`rounded-xl p-3 ${meta.accent}`}>
+                <TypeIcon className="h-5 w-5" />
+              </span>
+            </button>
+          );
+        })}
+      </section>
+
+      <section className="portal-panel flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative w-full max-w-xl">
+          <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+          <input
+            className="portal-input pl-10"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher dans mes favoris…"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {filters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setActiveFilter(filter.value)}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                activeFilter === filter.value
+                  ? "bg-sky-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {actionError && (
         <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {actionError}
         </p>
       )}
-
-      {/* Recherche + filtres */}
-      <Motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="portal-panel flex flex-col items-center justify-between gap-4 md:flex-row"
-      >
-        <div className="relative w-full max-w-xl">
-          <input
-            type="text"
-            placeholder="Rechercher un cours..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="portal-input pl-10"
-          />
-          <Search
-            size={20}
-            className="absolute left-3 top-3 text-slate-400"
-          />
-        </div>
-
-        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-          <select
-            className="portal-select"
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option> -- Catégorie -- </option>
-            {categories.map((cat) => (
-              <option key={cat}>{cat}</option>
-            ))}
-          </select>
-
-          <select
-            className="portal-select"
-            value={niveauFilter}
-            onChange={(e) => {
-              setNiveauFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option> -- Niveau -- </option>
-            {niveaux.map((niv) => (
-              <option key={niv}>{niv}</option>
-            ))}
-          </select>
-
-          <button
-            onClick={() => {
-              setCategoryFilter("Tous");
-              setNiveauFilter("Tous");
-              setSearch("");
-              setPage(1);
-            }}
-            className="portal-secondary-button w-full md:w-auto"
-          >
-            Réinitialiser
-          </button>
-        </div>
-      </Motion.div>
 
       {loading && (
         <div className="portal-empty flex items-center justify-center gap-2">
@@ -140,93 +188,106 @@ export default function FavoritePage() {
         </div>
       )}
 
-      {/* Grid des favoris */}
-      {!loading && !error && <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {paginated.map((cours, index) => (
-          <Motion.div
-            key={cours.id}
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{
-              scale: 1.03,
-              boxShadow: "0 12px 25px rgba(0,0,0,0.08)",
-            }}
-            whileTap={{ scale: 0.97 }}
-            className="portal-card relative cursor-pointer p-6"
-          >
-            <Motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={async () => {
-                const snapshot = remoteFavorites;
-                setActionError("");
-                setData((items) => items.filter((item) => item.id !== cours.id));
-                try {
-                  await coursesApi.setFavorite(cours.id, false);
-                } catch (removeError) {
-                  setData(snapshot);
-                  setActionError(removeError.message || "Le favori n’a pas pu être supprimé.");
-                }
-              }}
-              className="absolute top-3 right-3"
-            >
-              <Heart size={24} className="text-red-500 fill-red-500" />
-            </Motion.button>
+      {!loading && !error && filteredFavorites.length > 0 && (
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {filteredFavorites.map((item, index) => {
+            const meta = typeMeta[item.favoriteType];
+            const TypeIcon = meta.icon;
+            const title = item.titre || item.title;
 
-            <h2 className="mb-2 pr-7 text-lg font-bold text-slate-950">
-              {cours.titre}
-            </h2>
-            <p className="text-sm text-slate-600">Niveau : {cours.niveau}</p>
-            <p className="mt-1 text-xs font-bold text-sky-700">
-              Catégorie : {cours.categorie}
-            </p>
+            return (
+              <Motion.article
+                key={`${item.favoriteType}-${item.id}`}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.04 }}
+                className="portal-card flex h-full flex-col overflow-hidden"
+              >
+                {item.favoriteType === "advertisement" && item.image && (
+                  <img
+                    src={item.image}
+                    alt={title}
+                    className="h-40 w-full object-cover"
+                  />
+                )}
 
-            <Motion.a
-              href={cours.pdf}
-              download
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
-              className="portal-primary-button mt-5 w-full"
-            >
-              <Download size={18} /> Télécharger
-            </Motion.a>
-          </Motion.div>
-        ))}
-      </div>}
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-bold ${meta.accent}`}
+                    >
+                      <TypeIcon className="h-4 w-4" /> {meta.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeFavorite(item)}
+                      aria-label={`Retirer ${title} des favoris`}
+                      className="rounded-lg p-2 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
 
-      {!loading && !error && filtered.length === 0 && (
-        <p className="portal-empty text-base">
-          Aucun favori trouvé.
-        </p>
+                  <h2 className="mt-4 text-lg font-bold text-slate-950">
+                    {title}
+                  </h2>
+
+                  {item.favoriteType === "course" && (
+                    <p className="mt-2 text-sm text-slate-600">
+                      {item.niveau} · {item.categorie}
+                    </p>
+                  )}
+
+                  {item.favoriteType === "opportunity" && (
+                    <div className="mt-2 space-y-1.5 text-sm text-slate-600">
+                      <p>{item.entreprise}</p>
+                      <p className="flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4" /> {item.lieu}
+                      </p>
+                    </div>
+                  )}
+
+                  {item.description && (
+                    <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className="mt-auto pt-5">
+                    {item.favoriteType === "course" && item.pdf && (
+                      <a href={item.pdf} download className="portal-primary-button w-full">
+                        <Download className="h-4 w-4" /> Télécharger le cours
+                      </a>
+                    )}
+                    {item.favoriteType === "opportunity" && (
+                      <Link
+                        to="/stages-opportunites"
+                        className="portal-primary-button w-full"
+                      >
+                        Voir les opportunités <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    )}
+                    {item.favoriteType === "advertisement" && (
+                      <a
+                        href={item.url || "/publicites"}
+                        target={item.url ? "_blank" : undefined}
+                        rel={item.url ? "noreferrer" : undefined}
+                        className="portal-primary-button w-full"
+                      >
+                        Voir le bon plan <ArrowRight className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </Motion.article>
+            );
+          })}
+        </section>
       )}
 
-      {/* PAGINATION */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-3 mt-8 items-center">
-          <Button
-            variant="outline"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            <ChevronLeft />
-          </Button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <Button
-              key={i}
-              variant={page === i + 1 ? "default" : "outline"}
-              onClick={() => setPage(i + 1)}
-            >
-              {i + 1}
-            </Button>
-          ))}
-          <Button
-            variant="outline"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            <ChevronRight />
-          </Button>
+      {!loading && !error && filteredFavorites.length === 0 && (
+        <div className="portal-empty">
+          Aucun favori ne correspond à cette sélection.
         </div>
       )}
     </div>

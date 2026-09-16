@@ -141,7 +141,14 @@ export const coursesApi = {
         .from("course_favorites")
         .select("created_at, course:courses(*)")
         .order("created_at", { ascending: false })
-    ).then((rows) => rows.map((row) => mapCourse(row.course))),
+    ).then((rows) =>
+      rows
+        .filter((row) => row.course)
+        .map((row) => ({
+          ...mapCourse(row.course),
+          favoriteCreatedAt: row.created_at,
+        }))
+    ),
   setFavorite: (courseId, favorite) =>
     setFavorite("course_favorites", "course_id", courseId, favorite),
   create: (payload) => createRecord("courses", payload),
@@ -227,6 +234,24 @@ export const opportunitiesApi = {
   },
   listFavoriteIds: () =>
     listFavoriteIds("opportunity_favorites", "opportunity_id"),
+  listFavorites: async () =>
+    unwrap(
+      client()
+        .from("opportunity_favorites")
+        .select("created_at, opportunity:opportunities(*)")
+        .order("created_at", { ascending: false })
+    ).then((rows) =>
+      rows
+        .filter((row) => row.opportunity)
+        .map((row) => ({
+          ...row.opportunity,
+          titre: row.opportunity.title,
+          entreprise: row.opportunity.company,
+          lieu: row.opportunity.city || "À distance",
+          duree: row.opportunity.duration || "À confirmer",
+          favoriteCreatedAt: row.created_at,
+        }))
+    ),
   setFavorite: (opportunityId, favorite) =>
     setFavorite(
       "opportunity_favorites",
@@ -241,13 +266,22 @@ export const opportunitiesApi = {
 };
 
 export const projectsApi = {
-  list: async () =>
-    (await listPublished("student_projects")).map((row) => ({
+  list: async () => {
+    const [rows, profiles] = await Promise.all([
+      listPublished("student_projects"),
+      unwrap(client().from("public_profiles").select("user_id,display_name")),
+    ]);
+    const names = new Map(
+      profiles.map((profile) => [profile.user_id, profile.display_name])
+    );
+    return rows.map((row) => ({
       ...row,
       desc: row.description,
       tech: row.tech_stack?.join(" / ") || "",
       updated: formatDate(row.updated_at),
-    })),
+      author: names.get(row.owner_id) || "Étudiant ENIAD",
+    }));
+  },
   listMine: async () =>
     (await listOwned("student_projects", "owner_id")).map((row) => ({
       ...row,
@@ -331,6 +365,23 @@ export const advertisementsApi = {
   },
   listFavoriteIds: () =>
     listFavoriteIds("advertisement_favorites", "advertisement_id"),
+  listFavorites: async () =>
+    unwrap(
+      client()
+        .from("advertisement_favorites")
+        .select("created_at, advertisement:advertisements(*)")
+        .order("created_at", { ascending: false })
+    ).then((rows) =>
+      rows
+        .filter((row) => row.advertisement)
+        .map((row) => ({
+          ...row.advertisement,
+          titre: row.advertisement.title,
+          image: row.advertisement.image_url,
+          url: row.advertisement.target_url,
+          favoriteCreatedAt: row.created_at,
+        }))
+    ),
   setFavorite: (advertisementId, favorite) =>
     setFavorite(
       "advertisement_favorites",
@@ -338,6 +389,41 @@ export const advertisementsApi = {
       advertisementId,
       favorite
     ),
+};
+
+export const favoritesApi = {
+  list: async () => {
+    const [courses, opportunities, advertisements] = await Promise.all([
+      coursesApi.listFavorites(),
+      opportunitiesApi.listFavorites(),
+      advertisementsApi.listFavorites(),
+    ]);
+
+    return [
+      ...courses.map((item) => ({ ...item, favoriteType: "course" })),
+      ...opportunities.map((item) => ({
+        ...item,
+        favoriteType: "opportunity",
+      })),
+      ...advertisements.map((item) => ({
+        ...item,
+        favoriteType: "advertisement",
+      })),
+    ].sort(
+      (first, second) =>
+        new Date(second.favoriteCreatedAt || 0) -
+        new Date(first.favoriteCreatedAt || 0)
+    );
+  },
+  remove: (item) => {
+    if (item.favoriteType === "course") {
+      return coursesApi.setFavorite(item.id, false);
+    }
+    if (item.favoriteType === "opportunity") {
+      return opportunitiesApi.setFavorite(item.id, false);
+    }
+    return advertisementsApi.setFavorite(item.id, false);
+  },
 };
 
 export const chatApi = {

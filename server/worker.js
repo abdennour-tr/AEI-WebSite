@@ -13,7 +13,7 @@ const PORTAL_ROUTES = [
   { label: "Ouvrir la marketplace", url: "/marketplace" },
   { label: "Voir les colocations", url: "/colocation" },
   { label: "Voir les stages et opportunités", url: "/stages-opportunites" },
-  { label: "Voir les projets", url: "/mes-projets" },
+  { label: "Voir les projets", url: "/projets" },
   { label: "Ouvrir le forum", url: "/forum-communaute" },
 ];
 
@@ -401,7 +401,7 @@ function allowedLinks(context, messages) {
   }
   if (matches(["projet", "github", "demo"])) {
     domainMatched = true;
-    urls.add("/mes-projets");
+    urls.add("/projets");
     for (const project of context.student_projects) {
       if (project.repository_url) urls.add(project.repository_url);
       if (project.demo_url) urls.add(project.demo_url);
