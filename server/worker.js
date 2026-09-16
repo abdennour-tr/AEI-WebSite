@@ -1,7 +1,7 @@
 const STATIC_ASSETS = globalThis.__AEI_STATIC_ASSETS__ || {};
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_GROQ_MODEL = "qwen/qwen3.8-27b";
 const MAX_MESSAGE_LENGTH = 1200;
 const MAX_HISTORY_MESSAGES = 8;
 const REQUESTS_PER_MINUTE = 20;
@@ -344,7 +344,7 @@ RÈGLES ABSOLUES :
 6. Pour "le meilleur club", précise que le choix dépend des intérêts et recommande à partir des domaines réels des clubs.
 7. Pour les dates relatives comme "la semaine prochaine", calcule uniquement à partir de generated_at et starts_at.
 8. Pour un budget, compare les prix numériques réellement présents. N'invente aucun produit ou logement.
-9. Réponds en français, de manière concise et pratique. Utilise les noms exacts et les prix en DH.
+9. Réponds en français, de manière concise et pratique. Utilise les noms exacts et les prix en DH. Écris answer en texte simple, sans Markdown.
 10. Ne place aucune URL dans answer. Ajoute seulement les liens utiles dans links, avec une étiquette claire et une URL copiée exactement depuis le contexte.
 
 FORMAT JSON OBLIGATOIRE :
@@ -414,7 +414,7 @@ async function askGroq(env, messages, context) {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: env.GROQ_MODEL || DEFAULT_GROQ_MODEL,
       temperature: 0.15,
       max_completion_tokens: 700,
       response_format: { type: "json_object" },
