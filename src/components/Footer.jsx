@@ -93,7 +93,10 @@ export default function Footer() {
       {/* Divider */}
       <div className="mx-auto mt-12 flex max-w-7xl flex-col gap-2 border-t border-white/10 px-6 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <span>&copy; {new Date().getFullYear()} AEI. Tous droits réservés.</span>
-        <span>Conçu pour la communauté étudiante AEI.</span>
+        <span>
+          Développé par{" "}
+          <strong className="font-semibold text-sky-300">TRARI Abdenour</strong>
+        </span>
       </div>
     </footer>
   );
