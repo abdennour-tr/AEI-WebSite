@@ -364,27 +364,64 @@ function parseGroqPayload(content) {
   }
 }
 
-function allowedLinks(context) {
-  const urls = new Set(PORTAL_ROUTES.map((route) => route.url));
+function allowedLinks(context, messages) {
+  const question = normalize(messages.at(-1)?.content);
+  const urls = new Set();
+  const matches = (keywords) => keywords.some((keyword) => question.includes(keyword));
+  let domainMatched = false;
 
-  for (const club of CLUBS) urls.add(club.contact);
-  for (const course of context.courses) {
-    if (course.pdf_url) urls.add(course.pdf_url);
+  if (matches(["club", "association", "innoverse", "nurlai", "riot", "secora", "techrise", "enactus", "ataa"])) {
+    domainMatched = true;
+    urls.add("/clubs");
+    for (const club of CLUBS) urls.add(club.contact);
   }
-  for (const opportunity of context.opportunities) {
-    if (opportunity.application_url) urls.add(opportunity.application_url);
+  if (matches(["cours", "module", "matiere", "support", "telecharg", "pdf", "cp1", "cp2", "cpd", "cycle"])) {
+    domainMatched = true;
+    urls.add("/cours");
+    for (const course of context.courses) if (course.pdf_url) urls.add(course.pdf_url);
   }
-  for (const project of context.student_projects) {
-    if (project.repository_url) urls.add(project.repository_url);
-    if (project.demo_url) urls.add(project.demo_url);
+  if (matches(["marketplace", "produit", "materiel", "ordinateur", "telephone"])) {
+    domainMatched = true;
+    urls.add("/marketplace");
+  }
+  if (matches(["colocation", "logement", "loyer", "chambre", "studio"])) {
+    domainMatched = true;
+    urls.add("/colocation");
+  }
+  if (matches(["evenement", "agenda", "atelier", "conference", "hackathon"])) {
+    domainMatched = true;
+    urls.add("/evenements");
+  }
+  if (matches(["stage", "opportunite", "emploi"])) {
+    domainMatched = true;
+    urls.add("/stages-opportunites");
+    for (const opportunity of context.opportunities) {
+      if (opportunity.application_url) urls.add(opportunity.application_url);
+    }
+  }
+  if (matches(["projet", "github", "demo"])) {
+    domainMatched = true;
+    urls.add("/mes-projets");
+    for (const project of context.student_projects) {
+      if (project.repository_url) urls.add(project.repository_url);
+      if (project.demo_url) urls.add(project.demo_url);
+    }
+  }
+  if (matches(["forum", "communaute"])) {
+    domainMatched = true;
+    urls.add("/forum-communaute");
+  }
+
+  if (!domainMatched) {
+    for (const route of PORTAL_ROUTES) urls.add(route.url);
   }
 
   return urls;
 }
 
-function sanitizeLinks(links, context) {
+function sanitizeLinks(links, context, messages) {
   if (!Array.isArray(links)) return [];
-  const allowed = allowedLinks(context);
+  const allowed = allowedLinks(context, messages);
   const seen = new Set();
 
   return links
@@ -501,7 +538,7 @@ async function handleChatRequest(request, env) {
       answer:
         compactText(result.answer, 2400) ||
         "Je n’ai pas trouvé cette information dans le portail.",
-      links: sanitizeLinks(result.links, context),
+      links: sanitizeLinks(result.links, context, messages),
     });
   } catch (error) {
     if (error.status === 429) {
