@@ -5,6 +5,7 @@ import logo from "../assets/AEI.png";
 
 const pageLinks = [
   { label: "Accueil", to: "/" },
+  { label: "Clubs de l’ENIAD", to: "/clubs" },
   { label: "Cours", to: "/cours" },
   { label: "Colocation", to: "/colocation" },
   { label: "Marketplace", to: "/marketplace" },
@@ -29,8 +30,8 @@ export default function Footer() {
             className="w-32 rounded-md bg-white object-contain p-2 md:w-36"
           />
           <p className="max-w-sm text-sm leading-relaxed text-slate-400 md:text-base">
-            Le portail qui rassemble les ressources, les opportunités et les
-            échanges de la communauté étudiante AEI.
+            Le portail qui aide chaque étudiant à trouver sa place dans les clubs,
+            rencontrer sa communauté et s’intégrer pleinement à l’ENIAD.
           </p>
         </div>
 

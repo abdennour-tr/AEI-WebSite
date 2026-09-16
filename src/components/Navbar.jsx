@@ -15,12 +15,22 @@ import Footer from "../components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 
 function ScrollToTopDiv() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const containerRef = useRef(null);
 
   useEffect(() => {
+    if (hash) {
+      window.requestAnimationFrame(() => {
+        document.getElementById(hash.slice(1))?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+      return;
+    }
+
     containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-  }, [pathname]);
+  }, [pathname, hash]);
 
   return containerRef;
 }
@@ -37,6 +47,7 @@ export default function MainNavigation({ children }) {
     "Étudiant AEI";
 
   const menuItems = [
+    { name: "Découvrir les clubs", image: communautes, to: "/clubs" },
     {
       name: "Mes annonces de colocation",
       image: colocation,
@@ -53,6 +64,7 @@ export default function MainNavigation({ children }) {
 
   const topLinks = [
     { name: "Accueil", to: "/" },
+    { name: "Clubs", to: "/clubs" },
     { name: "Cours", to: "/cours" },
     { name: "Colocation", to: "/colocation" },
     { name: "Marketplace", to: "/marketplace" },
@@ -126,7 +138,7 @@ export default function MainNavigation({ children }) {
 
         {/* Menu principal */}
         <p className="mb-3 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-          Mon espace
+          Vie étudiante
         </p>
         <ul className="space-y-1">
           {menuItems.map((item, index) => (

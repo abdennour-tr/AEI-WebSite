@@ -17,6 +17,7 @@ import ColocationPage from "./pages/colocation";
 import MarketPlacePage from "./pages/marketplace";
 import ProfilePage from "./pages/profile";
 import ConnexionPage from "./pages/connexion";
+import ClubsPage from "./pages/clubs";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             }
           >
             <Route path="/" element={<HomePage />} />
+            <Route path="/clubs" element={<ClubsPage />} />
             <Route path="/cours" element={<CoursPage />} />
             <Route path="/favori" element={<FavoritePage />} />
             <Route path="/chatbot" element={<ChatbotAIPage />} />

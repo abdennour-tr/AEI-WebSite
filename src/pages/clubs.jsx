@@ -1,0 +1,336 @@
+import { useMemo, useState } from "react";
+import {
+  ArrowRight,
+  Bot,
+  BrainCircuit,
+  CheckCircle2,
+  Code2,
+  ExternalLink,
+  HandHeart,
+  HeartHandshake,
+  Lightbulb,
+  Mail,
+  MapPin,
+  Rocket,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  UsersRound,
+  X,
+} from "lucide-react";
+import { motion as Motion } from "framer-motion";
+import PageHeader from "@/components/PageHeader";
+import clubs from "@/data/Clubs";
+
+const iconMap = {
+  code: Code2,
+  brain: BrainCircuit,
+  robot: Bot,
+  shield: ShieldCheck,
+  rocket: Rocket,
+  lightbulb: Lightbulb,
+  heart: HandHeart,
+};
+
+const accentMap = {
+  violet: "bg-violet-50 text-violet-700 ring-violet-100",
+  sky: "bg-sky-50 text-sky-700 ring-sky-100",
+  amber: "bg-amber-50 text-amber-700 ring-amber-100",
+  rose: "bg-rose-50 text-rose-700 ring-rose-100",
+  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-100",
+  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  red: "bg-red-50 text-red-700 ring-red-100",
+};
+
+const categories = [
+  "Tous",
+  "Développement & innovation",
+  "IA & Data",
+  "Robotique & IoT",
+  "Cybersécurité",
+  "Innovation & carrière",
+  "Entrepreneuriat social",
+  "Solidarité & citoyenneté",
+];
+
+export default function ClubsPage() {
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("Tous");
+  const [selectedClub, setSelectedClub] = useState(null);
+
+  const filteredClubs = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("fr");
+    return clubs.filter((club) => {
+      const matchesCategory = category === "Tous" || club.category === category;
+      const matchesSearch =
+        !query ||
+        [club.name, club.category, club.tagline, ...club.activities]
+          .join(" ")
+          .toLocaleLowerCase("fr")
+          .includes(query);
+      return matchesCategory && matchesSearch;
+    });
+  }, [category, search]);
+
+  return (
+    <div className="portal-page">
+      <PageHeader
+        icon={UsersRound}
+        eyebrow="Vie associative ENIAD"
+        title="Trouvez le club où vous allez grandir"
+        description="Découvrez les missions, activités et modalités d’adhésion des clubs de l’école. Vous n’avez pas besoin d’être expert : choisissez d’abord ce que vous avez envie d’apprendre et d’apporter."
+      >
+        <a
+          href="#rejoindre"
+          className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-sky-950/20 transition hover:bg-sky-400"
+        >
+          Comment rejoindre un club <ArrowRight className="h-4 w-4" />
+        </a>
+      </PageHeader>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="portal-panel md:col-span-2">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">
+            Pourquoi s’engager ?
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-slate-950">
+            Votre première équipe, vos premiers projets, votre place dans l’école.
+          </h2>
+          <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+            Les clubs facilitent les rencontres entre promotions, permettent de pratiquer hors des cours et donnent un cadre concret pour développer des compétences techniques, humaines et professionnelles.
+          </p>
+        </div>
+        <div className="rounded-2xl bg-sky-700 p-6 text-white shadow-lg shadow-sky-100">
+          <p className="text-4xl font-bold">{clubs.length}</p>
+          <p className="mt-1 font-semibold">clubs recensés</p>
+          <p className="mt-3 text-sm leading-6 text-sky-100">
+            Technologie, IA, robotique, sécurité, entrepreneuriat et solidarité.
+          </p>
+        </div>
+      </section>
+
+      <section className="portal-panel flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full lg:max-w-xl">
+          <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+          <input
+            className="portal-input pl-11"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher un club, une activité ou une compétence…"
+          />
+        </div>
+        <select
+          className="portal-select w-full lg:w-72"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          aria-label="Filtrer les clubs par domaine"
+        >
+          {categories.map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
+      </section>
+
+      <section aria-label="Annuaire des clubs" className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {filteredClubs.map((club, index) => {
+          const Icon = iconMap[club.icon];
+          return (
+            <Motion.article
+              key={club.id}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04 }}
+              className="portal-card flex h-full flex-col p-6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${accentMap[club.accent]}`}>
+                  <Icon className="h-6 w-6" />
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                  {club.category}
+                </span>
+              </div>
+
+              <h2 className="mt-5 text-xl font-bold text-slate-950">{club.name}</h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-sky-700">
+                {club.tagline}
+              </p>
+              <p className="mt-3 flex-1 text-sm leading-6 text-slate-600">
+                {club.description}
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {club.highlights.slice(0, 2).map((highlight) => (
+                  <span key={highlight} className="portal-badge">
+                    {highlight}
+                  </span>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedClub(club)}
+                className="portal-primary-button mt-6 w-full"
+              >
+                Découvrir le club <ArrowRight className="h-4 w-4" />
+              </button>
+            </Motion.article>
+          );
+        })}
+      </section>
+
+      {filteredClubs.length === 0 && (
+        <div className="portal-empty">
+          Aucun club ne correspond à cette recherche. Essayez un autre domaine.
+        </div>
+      )}
+
+      <section id="rejoindre" className="scroll-mt-24 rounded-3xl bg-slate-950 p-6 text-white shadow-xl sm:p-9">
+        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+          <div>
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-sky-400/15 text-sky-300">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-sky-300">
+              Parcours d’intégration
+            </p>
+            <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
+              Rejoindre un club en quatre étapes simples
+            </h2>
+            <p className="mt-3 text-base leading-7 text-slate-300">
+              Les périodes de recrutement sont annoncées par les clubs et pendant la semaine d’intégration. Vous pouvez aussi contacter directement un club tout au long de l’année.
+            </p>
+          </div>
+
+          <ol className="grid gap-3 sm:grid-cols-2">
+            {[
+              ["1", "Explorez", "Comparez les missions et les activités qui vous motivent."],
+              ["2", "Rencontrez", "Assistez à un stand, une réunion ou une activité ouverte."],
+              ["3", "Candidatez", "Contactez le club et présentez votre motivation simplement."],
+              ["4", "Contribuez", "Rejoignez un pôle ou un projet adapté à votre disponibilité."],
+            ].map(([number, title, description]) => (
+              <li key={number} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-sm font-bold">
+                    {number}
+                  </span>
+                  <div>
+                    <h3 className="font-bold">{title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-400">{description}</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="portal-panel flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+            <HeartHandshake className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">Vous ne savez pas encore quel club choisir ?</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              L’Association des Étudiants Ingénieurs peut vous orienter vers les responsables et les prochaines activités.
+            </p>
+          </div>
+        </div>
+        <a
+          href="https://ma.linkedin.com/company/ade-eniad"
+          target="_blank"
+          rel="noreferrer"
+          className="portal-secondary-button shrink-0"
+        >
+          Contacter l’AEI <ExternalLink className="h-4 w-4" />
+        </a>
+      </section>
+
+      {selectedClub && (
+        <div className="portal-modal-backdrop" role="presentation" onMouseDown={() => setSelectedClub(null)}>
+          <Motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="portal-modal max-w-3xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="club-detail-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedClub(null)}
+              className="absolute right-4 top-4 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Fermer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-start gap-4 pr-10">
+              {(() => {
+                const Icon = iconMap[selectedClub.icon];
+                return (
+                  <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 ${accentMap[selectedClub.accent]}`}>
+                    <Icon className="h-6 w-6" />
+                  </span>
+                );
+              })()}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
+                  {selectedClub.category}
+                </p>
+                <h2 id="club-detail-title" className="mt-1 text-2xl font-bold text-slate-950">
+                  {selectedClub.name}
+                </h2>
+              </div>
+            </div>
+
+            <p className="mt-5 text-base leading-7 text-slate-600">{selectedClub.description}</p>
+
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <div>
+                <h3 className="font-bold text-slate-950">Activités principales</h3>
+                <ul className="mt-3 space-y-2">
+                  {selectedClub.activities.map((activity) => (
+                    <li key={activity} className="flex gap-2 text-sm leading-6 text-slate-600">
+                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
+                      {activity}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-950">Comment intégrer ce club</h3>
+                <ol className="mt-3 space-y-2">
+                  {selectedClub.joinSteps.map((step, index) => (
+                    <li key={step} className="flex gap-2 text-sm leading-6 text-slate-600">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100 text-xs font-bold text-sky-700">
+                        {index + 1}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <MapPin className="h-4 w-4 text-sky-700" /> Campus ENIAD, Berkane
+              </div>
+              <a
+                href={selectedClub.contactUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="portal-primary-button"
+              >
+                <Mail className="h-4 w-4" /> {selectedClub.contactLabel}
+              </a>
+            </div>
+          </Motion.div>
+        </div>
+      )}
+    </div>
+  );
+}
