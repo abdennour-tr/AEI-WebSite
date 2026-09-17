@@ -457,3 +457,103 @@ export const notificationsApi = {
   markRead: (id) =>
     updateRecord("notifications", id, { read_at: new Date().toISOString() }),
 };
+
+const normalizeClubApplications = (value) =>
+  Array.isArray(value)
+    ? value.filter(
+        (application) =>
+          application &&
+          typeof application.club_id === "string" &&
+          ["submitted", "accepted", "refused"].includes(application.status)
+      )
+    : [];
+
+const isMissingClubApplicationsTable = (error) =>
+  ["42P01", "PGRST205"].includes(error?.code);
+
+async function listClubApplicationsFromAccount() {
+  const {
+    data: { user },
+    error,
+  } = await client().auth.getUser();
+  if (error) throw error;
+  return normalizeClubApplications(user?.user_metadata?.club_applications);
+}
+
+export const clubApplicationsApi = {
+  listMine: async () => {
+    const { data, error } = await client()
+      .from("club_applications")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!error) return data;
+    if (!isMissingClubApplicationsTable(error)) throw error;
+    return listClubApplicationsFromAccount();
+  },
+  submit: async ({ clubId, preferredPole, availability, motivation }) => {
+    const {
+      data: { user },
+      error: userError,
+    } = await client().auth.getUser();
+    if (userError) throw userError;
+    if (!user) throw new Error("Vous devez être connecté pour rejoindre un club.");
+
+    const payload = {
+      club_id: clubId,
+      applicant_id: user.id,
+      preferred_pole: preferredPole,
+      availability,
+      motivation: motivation.trim(),
+    };
+
+    const { data: storedApplication, error: insertError } = await client()
+      .from("club_applications")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (!insertError) return storedApplication;
+
+    if (insertError.code === "23505") {
+      const { data: existingApplication, error: existingError } = await client()
+        .from("club_applications")
+        .select("*")
+        .eq("club_id", clubId)
+        .eq("applicant_id", user.id)
+        .single();
+      if (existingError) throw existingError;
+      return existingApplication;
+    }
+
+    if (!isMissingClubApplicationsTable(insertError)) throw insertError;
+
+    const applications = normalizeClubApplications(
+      user.user_metadata?.club_applications
+    );
+    const existing = applications.find(
+      (application) => application.club_id === clubId
+    );
+    if (existing) return existing;
+
+    const application = {
+      id: `${clubId}-${Date.now()}`,
+      ...payload,
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await client().auth.updateUser({
+      data: {
+        ...user.user_metadata,
+        club_applications: [...applications, application],
+      },
+    });
+    if (error) throw error;
+
+    return {
+      ...application,
+      user: data.user,
+    };
+  },
+};

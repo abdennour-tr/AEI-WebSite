@@ -1,3 +1,7 @@
+import galleryCampus from "../assets/events/event1.png";
+import galleryChallenge from "../assets/events/event2.png";
+import galleryMeetup from "../assets/events/event3.png";
+
 const clubs = [
   {
     id: "innoverse",
@@ -179,4 +183,145 @@ const clubs = [
   },
 ];
 
-export default clubs;
+const sharedBoard = [
+  { name: "Présidence", role: "Coordination générale", initials: "PR" },
+  { name: "Responsable activités", role: "Programme & événements", initials: "RA" },
+  { name: "Responsable communication", role: "Média & communauté", initials: "RC" },
+];
+
+const clubProfiles = {
+  innoverse: {
+    founded: "Club technologique",
+    recruitment: "Candidatures ouvertes toute l’année",
+    objectives: [
+      "Transformer les acquis techniques en produits numériques concrets.",
+      "Créer des équipes pluridisciplinaires autour de défis réels.",
+      "Développer la culture du partage et du mentorat entre promotions.",
+    ],
+    upcomingEvents: [
+      { title: "Atelier API & microservices", date: "Date bientôt annoncée", location: "ENIAD — salle de projet", type: "Atelier" },
+      { title: "Session de découverte des pôles", date: "Prochaine campagne", location: "Campus ENIAD", type: "Rencontre" },
+    ],
+    projects: [
+      { title: "TechConnect", description: "Rencontres techniques et partage d’expériences autour des métiers du numérique.", tag: "Communauté" },
+      { title: "ENIGMA Verse", description: "Challenge collaboratif mobilisant conception, développement et communication.", tag: "Challenge" },
+    ],
+  },
+  nurlai: {
+    founded: "Club IA & Data",
+    recruitment: "Ouvert aux débutants et aux profils avancés",
+    objectives: [
+      "Rendre l’intelligence artificielle accessible par des ateliers pratiques.",
+      "Accompagner les étudiants dans leurs premiers projets data.",
+      "Promouvoir une utilisation responsable, inclusive et utile de l’IA.",
+    ],
+    upcomingEvents: [
+      { title: "Hands-on Lab Machine Learning", date: "Date bientôt annoncée", location: "Laboratoire informatique", type: "Laboratoire" },
+      { title: "Rencontre Data Science", date: "Calendrier en préparation", location: "Campus ENIAD", type: "Échange" },
+    ],
+    projects: [
+      { title: "Rise Her", description: "Initiative autour de l’inclusion, du partage d’expérience et de la place des étudiantes dans la tech.", tag: "Impact" },
+      { title: "Data Science Sessions", description: "Parcours progressif de découverte, préparation des données et modélisation.", tag: "Formation" },
+    ],
+  },
+  riot: {
+    founded: "Club robotique & systèmes embarqués",
+    recruitment: "Aucun prérequis technique obligatoire",
+    objectives: [
+      "Apprendre la robotique en construisant des prototypes fonctionnels.",
+      "Relier programmation, électronique, mécanique et design produit.",
+      "Préparer des équipes capables de participer à des challenges techniques.",
+    ],
+    upcomingEvents: [
+      { title: "Initiation capteurs & microcontrôleurs", date: "Date bientôt annoncée", location: "Atelier ENIAD", type: "Formation" },
+      { title: "Démonstration de prototypes", date: "Calendrier en préparation", location: "Hall du campus", type: "Démonstration" },
+    ],
+    projects: [
+      { title: "Formation avec InnoRobot", description: "Cycle d’initiation aux bases de la robotique et à la réalisation de prototypes.", tag: "Formation" },
+      { title: "Prototypage IoT", description: "Expérimentations autour des capteurs, de la collecte de données et des objets connectés.", tag: "Prototype" },
+    ],
+  },
+  secora: {
+    founded: "Club cybersécurité",
+    recruitment: "Parcours progressif, du débutant au compétiteur",
+    objectives: [
+      "Développer les réflexes essentiels de sécurité numérique.",
+      "Former des équipes aux challenges CTF et à la résolution d’incidents.",
+      "Diffuser une culture éthique de la cybersécurité sur le campus.",
+    ],
+    upcomingEvents: [
+      { title: "Initiation OSINT", date: "Date bientôt annoncée", location: "Salle informatique", type: "Atelier" },
+      { title: "Entraînement CTF", date: "Calendrier en préparation", location: "Campus ENIAD", type: "Challenge" },
+    ],
+    projects: [
+      { title: "CTF local ENIAD", description: "Challenges de cryptographie, investigation, web et sécurité réseau en équipe.", tag: "Compétition" },
+      { title: "Cyber Awareness", description: "Actions de sensibilisation aux risques numériques et aux bonnes pratiques.", tag: "Sensibilisation" },
+    ],
+  },
+  techrise: {
+    founded: "Club innovation & carrière",
+    recruitment: "Pôles événementiel, partenariat et contenu",
+    objectives: [
+      "Rapprocher les étudiants des entreprises et des professionnels.",
+      "Développer les compétences de communication, d’organisation et de leadership.",
+      "Créer des rendez-vous utiles pour l’orientation et l’employabilité.",
+    ],
+    upcomingEvents: [
+      { title: "Rencontre métiers de l’ingénieur", date: "Date bientôt annoncée", location: "Amphithéâtre ENIAD", type: "Conférence" },
+      { title: "Préparation Forum de l’Entreprise", date: "Campagne à venir", location: "Campus ENIAD", type: "Organisation" },
+    ],
+    projects: [
+      { title: "Forum de l’Entreprise ENIADB", description: "Rencontre entre étudiants, recruteurs et professionnels autour des métiers et opportunités.", tag: "Carrière" },
+      { title: "Ateliers carrière", description: "Sessions pratiques de préparation, communication professionnelle et découverte des métiers.", tag: "Compétences" },
+    ],
+  },
+  enactus: {
+    founded: "Équipe d’entrepreneuriat social",
+    recruitment: "Rejoignez un projet ou un pôle support",
+    objectives: [
+      "Concevoir des solutions viables à des problématiques sociales réelles.",
+      "Former les étudiants à l’étude terrain, au modèle économique et au pitch.",
+      "Développer le leadership et la gestion de projet à impact.",
+    ],
+    upcomingEvents: [
+      { title: "Découverte des projets actifs", date: "Date bientôt annoncée", location: "Campus ENIAD", type: "Présentation" },
+      { title: "Atelier pitch & impact", date: "Calendrier en préparation", location: "Salle de projet", type: "Atelier" },
+    ],
+    projects: [
+      { title: "Parcours projets à impact", description: "Identification de besoins, validation terrain et construction de solutions durables.", tag: "Impact social" },
+      { title: "Sessions de pitch", description: "Accompagnement à la présentation claire d’un problème, d’une solution et de son impact.", tag: "Entrepreneuriat" },
+    ],
+  },
+  "al-ataa": {
+    founded: "Club solidarité & citoyenneté",
+    recruitment: "Bénévoles et organisateurs bienvenus",
+    objectives: [
+      "Mobiliser les étudiants autour d’actions solidaires utiles et mesurables.",
+      "Créer des liens durables avec les associations et acteurs locaux.",
+      "Faire du bénévolat une expérience accessible à toute la communauté.",
+    ],
+    upcomingEvents: [
+      { title: "Prochaine action solidaire", date: "Date bientôt annoncée", location: "Berkane", type: "Bénévolat" },
+      { title: "Réunion des nouveaux bénévoles", date: "Calendrier en préparation", location: "Campus ENIAD", type: "Rencontre" },
+    ],
+    projects: [
+      { title: "Campagne de don du sang", description: "Mobilisation et sensibilisation de la communauté autour du don du sang.", tag: "Santé" },
+      { title: "Actions de bénévolat", description: "Initiatives solidaires menées avec des associations et partenaires locaux.", tag: "Citoyenneté" },
+    ],
+  },
+};
+
+const gallery = [
+  { src: galleryCampus, alt: "Illustration d’une journée associative étudiante", caption: "Vie associative sur le campus" },
+  { src: galleryChallenge, alt: "Illustration d’un challenge technologique", caption: "Challenges et apprentissage par la pratique" },
+  { src: galleryMeetup, alt: "Illustration d’une rencontre professionnelle", caption: "Rencontres, échanges et réseau" },
+];
+
+export default clubs.map((club) => ({
+  ...club,
+  ...clubProfiles[club.id],
+  board: sharedBoard,
+  gallery,
+  testimonials: [],
+  socials: [{ label: "LinkedIn", url: club.contactUrl }],
+}));

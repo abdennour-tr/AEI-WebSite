@@ -1,26 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Bot,
   BrainCircuit,
-  CheckCircle2,
   Code2,
   ExternalLink,
   HandHeart,
   HeartHandshake,
   Lightbulb,
-  Mail,
-  MapPin,
   Rocket,
   Search,
   ShieldCheck,
   Sparkles,
   UsersRound,
-  X,
 } from "lucide-react";
 import { motion as Motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
 import clubs from "@/data/Clubs";
+import { clubApplicationsApi } from "@/services/portalApi";
 
 const iconMap = {
   code: Code2,
@@ -56,7 +54,20 @@ const categories = [
 export default function ClubsPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
-  const [selectedClub, setSelectedClub] = useState(null);
+  const [applications, setApplications] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    clubApplicationsApi
+      .listMine()
+      .then((items) => {
+        if (active) setApplications(items);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredClubs = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("fr");
@@ -134,6 +145,9 @@ export default function ClubsPage() {
       <section aria-label="Annuaire des clubs" className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {filteredClubs.map((club, index) => {
           const Icon = iconMap[club.icon];
+          const application = applications.find(
+            (item) => item.club_id === club.id
+          );
           return (
             <Motion.article
               key={club.id}
@@ -167,13 +181,30 @@ export default function ClubsPage() {
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedClub(club)}
-                className="portal-primary-button mt-6 w-full"
+              {application && (
+                <div
+                  className={`mt-5 rounded-xl border px-3 py-2 text-sm font-bold ${
+                    application.status === "accepted"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : application.status === "refused"
+                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                        : "border-amber-200 bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {application.status === "accepted"
+                    ? "Candidature acceptée"
+                    : application.status === "refused"
+                      ? "Candidature non retenue"
+                      : "Demande envoyée"}
+                </div>
+              )}
+
+              <Link
+                to={`/clubs/${club.id}`}
+                className="portal-primary-button mt-4 w-full"
               >
-                Découvrir le club <ArrowRight className="h-4 w-4" />
-              </button>
+                Voir la fiche complète <ArrowRight className="h-4 w-4" />
+              </Link>
             </Motion.article>
           );
         })}
@@ -247,90 +278,6 @@ export default function ClubsPage() {
         </a>
       </section>
 
-      {selectedClub && (
-        <div className="portal-modal-backdrop" role="presentation" onMouseDown={() => setSelectedClub(null)}>
-          <Motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="portal-modal max-w-3xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="club-detail-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedClub(null)}
-              className="absolute right-4 top-4 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
-              aria-label="Fermer"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="flex items-start gap-4 pr-10">
-              {(() => {
-                const Icon = iconMap[selectedClub.icon];
-                return (
-                  <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 ${accentMap[selectedClub.accent]}`}>
-                    <Icon className="h-6 w-6" />
-                  </span>
-                );
-              })()}
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
-                  {selectedClub.category}
-                </p>
-                <h2 id="club-detail-title" className="mt-1 text-2xl font-bold text-slate-950">
-                  {selectedClub.name}
-                </h2>
-              </div>
-            </div>
-
-            <p className="mt-5 text-base leading-7 text-slate-600">{selectedClub.description}</p>
-
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
-              <div>
-                <h3 className="font-bold text-slate-950">Activités principales</h3>
-                <ul className="mt-3 space-y-2">
-                  {selectedClub.activities.map((activity) => (
-                    <li key={activity} className="flex gap-2 text-sm leading-6 text-slate-600">
-                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
-                      {activity}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-950">Comment intégrer ce club</h3>
-                <ol className="mt-3 space-y-2">
-                  {selectedClub.joinSteps.map((step, index) => (
-                    <li key={step} className="flex gap-2 text-sm leading-6 text-slate-600">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100 text-xs font-bold text-sky-700">
-                        {index + 1}
-                      </span>
-                      {step}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <MapPin className="h-4 w-4 text-sky-700" /> Campus ENIAD, Berkane
-              </div>
-              <a
-                href={selectedClub.contactUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="portal-primary-button"
-              >
-                <Mail className="h-4 w-4" /> {selectedClub.contactLabel}
-              </a>
-            </div>
-          </Motion.div>
-        </div>
-      )}
     </div>
   );
 }

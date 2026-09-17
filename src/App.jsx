@@ -19,6 +19,7 @@ import MarketPlacePage from "./pages/marketplace";
 import ProfilePage from "./pages/profile";
 import ConnexionPage from "./pages/connexion";
 import ClubsPage from "./pages/clubs";
+import ClubDetailsPage from "./pages/club-details";
 import PublicProjectsPage from "./pages/projects";
 import OnboardingPage from "./pages/onboarding";
 
@@ -48,6 +49,7 @@ function App() {
           >
             <Route path="/" element={<HomePage />} />
             <Route path="/clubs" element={<ClubsPage />} />
+            <Route path="/clubs/:clubId" element={<ClubDetailsPage />} />
             <Route path="/projets" element={<PublicProjectsPage />} />
             <Route path="/cours" element={<CoursPage />} />
             <Route path="/favori" element={<FavoritePage />} />
