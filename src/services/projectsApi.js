@@ -33,6 +33,7 @@ const formatDate = (value) =>
 
 function normalizeProject(row, context = {}) {
   const team = Array.isArray(row.team_members) ? row.team_members : [];
+  const engagement = context.engagement?.get(row.id);
   return {
     ...row,
     desc: row.description,
@@ -43,63 +44,27 @@ function normalizeProject(row, context = {}) {
     team_members: team,
     screenshot_urls: row.screenshot_urls || [],
     collaborator_roles: row.collaborator_roles || [],
-    likesCount: context.likes?.filter((item) => item.project_id === row.id).length || 0,
-    commentsCount:
-      context.comments?.filter((item) => item.project_id === row.id).length || 0,
-    isLiked: context.likes?.some(
-      (item) => item.project_id === row.id && item.user_id === context.userId
-    ) || false,
-    isFavorite: context.favorites?.some((item) => item.project_id === row.id) || false,
-    joinRequestStatus:
-      context.joinRequests?.find((item) => item.project_id === row.id)?.status || null,
+    likesCount: Number(engagement?.likes_count || 0),
+    commentsCount: Number(engagement?.comments_count || 0),
+    isLiked: Boolean(engagement?.is_liked),
+    isFavorite: Boolean(engagement?.is_favorite),
+    joinRequestStatus: engagement?.join_request_status || null,
   };
 }
 
 async function loadContext() {
   const user = await currentUser();
-  const [profiles, likes, favorites, comments, joinRequests] = await Promise.all([
+  const [profiles, engagementRows] = await Promise.all([
     safeRows(client().from("public_profiles").select("user_id,display_name,avatar_url")),
-    safeRows(client().from("project_likes").select("project_id,user_id")),
-    safeRows(client().from("project_favorites").select("project_id,user_id")),
-    safeRows(client().from("project_comments").select("project_id")),
-    safeRows(
-      client()
-        .from("project_join_requests")
-        .select("project_id,status")
-        .eq("requester_id", user.id)
-    ),
+    safeRows(client().rpc("get_project_engagement")),
   ]);
 
   return {
     userId: user.id,
     names: new Map(profiles.map((profile) => [profile.user_id, profile.display_name])),
     avatars: new Map(profiles.map((profile) => [profile.user_id, profile.avatar_url])),
-    likes,
-    favorites,
-    comments,
-    joinRequests,
+    engagement: new Map(engagementRows.map((row) => [row.project_id, row])),
   };
-}
-
-async function setRelation(table, projectId, active) {
-  const user = await currentUser();
-  if (active) {
-    return unwrap(
-      client()
-        .from(table)
-        .upsert(
-          { project_id: projectId, user_id: user.id },
-          { onConflict: "user_id,project_id" }
-        )
-        .select()
-        .single()
-    );
-  }
-
-  await unwrap(
-    client().from(table).delete().eq("project_id", projectId).eq("user_id", user.id)
-  );
-  return null;
 }
 
 export const studentProjectsApi = {
@@ -170,37 +135,50 @@ export const studentProjectsApi = {
   },
 
   setLike(projectId, liked) {
-    return setRelation("project_likes", projectId, liked);
+    return unwrap(
+      client().rpc("toggle_project_like", {
+        target_project_id: projectId,
+        should_like: liked,
+      })
+    );
   },
 
   setFavorite(projectId, favorite) {
-    return setRelation("project_favorites", projectId, favorite);
+    return unwrap(
+      client().rpc("toggle_project_favorite", {
+        target_project_id: projectId,
+        should_favorite: favorite,
+      })
+    );
   },
 
   async listFavorites() {
-    const rows = await unwrap(
-      client()
-        .from("project_favorites")
-        .select("created_at,project:student_projects(*)")
-        .order("created_at", { ascending: false })
+    const favorites = await unwrap(client().rpc("get_project_favorites"));
+    if (!favorites?.length) return [];
+    const projects = await unwrap(
+      client().from("student_projects").select("*").in(
+        "id",
+        favorites.map((favorite) => favorite.project_id)
+      )
     );
     const context = await loadContext();
-    return rows
-      .filter((row) => row.project)
-      .map((row) => ({
-        ...normalizeProject(row.project, context),
-        favoriteCreatedAt: row.created_at,
-      }));
+    const favoriteDates = new Map(
+      favorites.map((favorite) => [favorite.project_id, favorite.favorite_created_at])
+    );
+    return projects
+      .map((project) => ({
+        ...normalizeProject(project, context),
+        favoriteCreatedAt: favoriteDates.get(project.id),
+      }))
+      .sort(
+        (first, second) =>
+          new Date(second.favoriteCreatedAt || 0) - new Date(first.favoriteCreatedAt || 0)
+      );
   },
 
   async listComments(projectId) {
     const comments = await unwrap(
-      client()
-        .from("project_comments")
-        .select("*")
-        .eq("project_id", projectId)
-        .eq("status", "published")
-        .order("created_at", { ascending: false })
+      client().rpc("get_project_comments", { target_project_id: projectId })
     );
     const profiles = await safeRows(
       client().from("public_profiles").select("user_id,display_name,avatar_url")
@@ -215,33 +193,21 @@ export const studentProjectsApi = {
   },
 
   async addComment(projectId, body) {
-    const user = await currentUser();
     return unwrap(
-      client()
-        .from("project_comments")
-        .insert({ project_id: projectId, author_id: user.id, body: body.trim() })
-        .select()
-        .single()
+      client().rpc("add_project_comment", {
+        target_project_id: projectId,
+        comment_body: body.trim(),
+      })
     );
   },
 
   async requestToJoin(projectId, payload) {
-    const user = await currentUser();
     return unwrap(
-      client()
-        .from("project_join_requests")
-        .upsert(
-          {
-            project_id: projectId,
-            requester_id: user.id,
-            role_requested: payload.roleRequested || null,
-            message: payload.message.trim(),
-            status: "submitted",
-          },
-          { onConflict: "project_id,requester_id" }
-        )
-        .select()
-        .single()
+      client().rpc("request_to_join_project", {
+        target_project_id: projectId,
+        desired_role: payload.roleRequested || "",
+        request_message: payload.message.trim(),
+      })
     );
   },
 };
