@@ -32,6 +32,7 @@ import { motion as Motion } from "framer-motion";
 import { Link, Navigate, useParams } from "react-router-dom";
 import clubs from "@/data/Clubs";
 import { clubApplicationsApi } from "@/services/portalApi";
+import { clubAdminApi } from "@/services/clubAdminApi";
 
 const iconMap = {
   code: Code2,
@@ -111,12 +112,21 @@ const sections = [
   ["avis", "Avis"],
 ];
 
+const formatDateTime = (value) =>
+  value
+    ? new Intl.DateTimeFormat("fr-FR", {
+        dateStyle: "long",
+        timeStyle: "short",
+      }).format(new Date(value))
+    : "Date bientôt annoncée";
+
 export default function ClubDetailsPage() {
   const { clubId } = useParams();
-  const club = useMemo(
+  const staticClub = useMemo(
     () => clubs.find((item) => item.id === clubId),
     [clubId]
   );
+  const [managedContent, setManagedContent] = useState(null);
   const [application, setApplication] = useState(null);
   const [loadingApplication, setLoadingApplication] = useState(true);
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -127,6 +137,53 @@ export default function ClubDetailsPage() {
     availability: "",
     motivation: "",
   });
+
+  const club = useMemo(() => {
+    if (!staticClub || !managedContent?.profile) return staticClub;
+    const profile = managedContent.profile;
+    return {
+      ...staticClub,
+      name: profile.name,
+      category: profile.category,
+      tagline: profile.tagline,
+      description: profile.description,
+      founded: profile.founded_label || staticClub.founded,
+      recruitment: profile.recruitment_label || staticClub.recruitment,
+      objectives: profile.objectives?.length ? profile.objectives : staticClub.objectives,
+      contactUrl: profile.contact_url || staticClub.contactUrl,
+      contactLabel: profile.contact_label || staticClub.contactLabel,
+      socials: [
+        {
+          label: "LinkedIn",
+          url: profile.contact_url || staticClub.contactUrl,
+        },
+      ],
+    };
+  }, [managedContent, staticClub]);
+
+  const displayedEvents = useMemo(() => {
+    if (!managedContent?.events?.length) return club?.upcomingEvents || [];
+    return managedContent.events.map((event) => ({
+      ...event,
+      date: formatDateTime(event.starts_at),
+      type: event.event_type,
+    }));
+  }, [club?.upcomingEvents, managedContent]);
+
+  useEffect(() => {
+    if (!staticClub) return undefined;
+    let active = true;
+    clubAdminApi
+      .getPublicContent(clubId)
+      .then((content) => {
+        if (active) setManagedContent(content);
+      })
+      .catch(() => undefined);
+    clubAdminApi.recordView(clubId).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [clubId, staticClub]);
 
   useEffect(() => {
     let active = true;
@@ -323,7 +380,7 @@ export default function ClubDetailsPage() {
             <span className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold ring-1 ${theme.chip}`}>{club.activities.length} formats d’activité</span>
           </div>
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            {club.upcomingEvents.map((event) => (
+            {displayedEvents.map((event) => (
               <article key={event.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-sky-700 ring-1 ring-slate-200">{event.type}</span>
@@ -343,6 +400,21 @@ export default function ClubDetailsPage() {
               {club.activities.map((activity) => <span key={activity} className="portal-badge">{activity}</span>)}
             </div>
           </div>
+          {managedContent?.announcements?.length > 0 && (
+            <div className="mt-7 border-t border-slate-100 pt-6">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                <Mail className="h-4 w-4 text-sky-700" /> Dernières annonces du club
+              </h3>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                {managedContent.announcements.map((announcement) => (
+                  <article key={announcement.id} className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+                    <h4 className="font-bold text-sky-950">{announcement.title}</h4>
+                    <p className="mt-2 text-sm leading-6 text-sky-900/70">{announcement.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section id="bureau" className="scroll-mt-24">

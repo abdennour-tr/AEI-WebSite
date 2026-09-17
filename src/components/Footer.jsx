@@ -17,6 +17,7 @@ const resourceLinks = [
   { label: "Évènements", to: "/evenements" },
   { label: "Opportunités", to: "/stages-opportunites" },
   { label: "Assistant IA", to: "/chatbot" },
+  { label: "Espace responsables", to: "/club-admin/connexion" },
 ];
 
 export default function Footer() {

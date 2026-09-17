@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import OnboardingGate from "./components/OnboardingGate";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ClubAdminRoute from "./components/ClubAdminRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 
 import HomePage from "./pages/home";
@@ -22,6 +23,8 @@ import ClubsPage from "./pages/clubs";
 import ClubDetailsPage from "./pages/club-details";
 import PublicProjectsPage from "./pages/projects";
 import OnboardingPage from "./pages/onboarding";
+import ClubAdminLoginPage from "./pages/club-admin-login";
+import ClubAdminDashboardPage from "./pages/club-admin-dashboard";
 
 function App() {
   return (
@@ -29,6 +32,10 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/connexion" element={<ConnexionPage />} />
+          <Route path="/club-admin/connexion" element={<ClubAdminLoginPage />} />
+          <Route element={<ClubAdminRoute />}>
+            <Route path="/club-admin" element={<ClubAdminDashboardPage />} />
+          </Route>
           <Route
             path="/bienvenue"
             element={
