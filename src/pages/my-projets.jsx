@@ -16,11 +16,28 @@ import {
 import fallbackProjects from "@/data/my-projects";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
-import { projectsApi } from "@/services/portalApi";
+import { studentProjectsApi } from "@/services/projectsApi";
+
+const emptyForm = {
+  title: "",
+  description: "",
+  tech_stack: "",
+  field_of_study: "",
+  academic_year: "2025–2026",
+  project_stage: "in_progress",
+  repository_url: "",
+  demo_url: "",
+  documentation_url: "",
+  cover_url: "",
+  screenshot_urls: "",
+  team_members: "",
+  seeking_collaborators: false,
+  collaborator_roles: "",
+};
 
 export default function ProjetsPage() {
   const { data: projets, loading, error, setData } = usePortalCollection(
-    projectsApi.listMine,
+    studentProjectsApi.listMine,
     fallbackProjects
   );
   const [page, setPage] = useState(1);
@@ -28,26 +45,12 @@ export default function ProjetsPage() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    tech_stack: "",
-    repository_url: "",
-    demo_url: "",
-    cover_url: "",
-  });
+  const [form, setForm] = useState(emptyForm);
   const projetsPerPage = 6;
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({
-      title: "",
-      description: "",
-      tech_stack: "",
-      repository_url: "",
-      demo_url: "",
-      cover_url: "",
-    });
+    setForm(emptyForm);
     setFormError("");
     setModalOpen(true);
   };
@@ -58,9 +61,19 @@ export default function ProjetsPage() {
       title: project.title || "",
       description: project.description || project.desc || "",
       tech_stack: project.tech_stack?.join(", ") || project.tech || "",
+      field_of_study: project.field_of_study || "",
+      academic_year: project.academic_year || "2025–2026",
+      project_stage: project.project_stage || "in_progress",
       repository_url: project.repository_url || "",
       demo_url: project.demo_url || "",
+      documentation_url: project.documentation_url || "",
       cover_url: project.cover_url || "",
+      screenshot_urls: project.screenshot_urls?.join(", ") || "",
+      team_members: (project.team_members || [])
+        .map((member) => `${member.name || ""} | ${member.role || ""}`)
+        .join("\n"),
+      seeking_collaborators: Boolean(project.seeking_collaborators),
+      collaborator_roles: project.collaborator_roles?.join(", ") || "",
     });
     setFormError("");
     setModalOpen(true);
@@ -77,20 +90,40 @@ export default function ProjetsPage() {
         .split(",")
         .map((tech) => tech.trim())
         .filter(Boolean),
+      field_of_study: form.field_of_study.trim() || null,
+      academic_year: form.academic_year.trim() || null,
+      project_stage: form.project_stage,
       repository_url: form.repository_url.trim() || null,
       demo_url: form.demo_url.trim() || null,
+      documentation_url: form.documentation_url.trim() || null,
       cover_url: form.cover_url.trim() || null,
+      screenshot_urls: form.screenshot_urls
+        .split(",")
+        .map((url) => url.trim())
+        .filter(Boolean),
+      team_members: form.team_members
+        .split("\n")
+        .map((line) => {
+          const [name, role] = line.split("|").map((part) => part.trim());
+          return { name, role: role || "Membre de l’équipe" };
+        })
+        .filter((member) => member.name),
+      seeking_collaborators: form.seeking_collaborators,
+      collaborator_roles: form.collaborator_roles
+        .split(",")
+        .map((role) => role.trim())
+        .filter(Boolean),
       status: "published",
     };
 
     try {
       if (editingId) {
-        const updated = await projectsApi.update(editingId, payload);
+        const updated = await studentProjectsApi.update(editingId, payload);
         setData((items) =>
           items.map((item) => (item.id === editingId ? updated : item))
         );
       } else {
-        const created = await projectsApi.create(payload);
+        const created = await studentProjectsApi.create(payload);
         setData((items) => [created, ...items]);
       }
       setModalOpen(false);
@@ -105,7 +138,7 @@ export default function ProjetsPage() {
   const handleDelete = async (project) => {
     if (!window.confirm(`Supprimer « ${project.title} » ?`)) return;
     try {
-      await projectsApi.remove(project.id);
+      await studentProjectsApi.remove(project.id);
       setData((items) => items.filter((item) => item.id !== project.id));
     } catch (deleteError) {
       window.alert(deleteError.message || "Impossible de supprimer le projet.");
@@ -248,7 +281,7 @@ export default function ProjetsPage() {
 
       {modalOpen && (
         <div className="portal-modal-backdrop" role="presentation">
-          <div className="portal-modal max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="project-form-title">
+          <div className="portal-modal max-w-4xl" role="dialog" aria-modal="true" aria-labelledby="project-form-title">
             <button
               type="button"
               className="absolute right-4 top-4 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
@@ -261,7 +294,7 @@ export default function ProjetsPage() {
               {editingId ? "Modifier le projet" : "Déposer un projet"}
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Présentez le projet, son code source et une démonstration lorsqu’elle existe.
+              Construisez une fiche complète : contexte, équipe, technologies, captures et besoins de collaboration.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -297,6 +330,37 @@ export default function ProjetsPage() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-700">
+                Filière
+                <input
+                  className="portal-input mt-2"
+                  value={form.field_of_study}
+                  onChange={(event) => setForm({ ...form, field_of_study: event.target.value })}
+                  placeholder="Intelligence artificielle"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                Année universitaire
+                <input
+                  className="portal-input mt-2"
+                  value={form.academic_year}
+                  onChange={(event) => setForm({ ...form, academic_year: event.target.value })}
+                  placeholder="2025–2026"
+                />
+              </label>
+              <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
+                Statut du projet
+                <select
+                  className="portal-select mt-2"
+                  value={form.project_stage}
+                  onChange={(event) => setForm({ ...form, project_stage: event.target.value })}
+                >
+                  <option value="idea">Idée validée</option>
+                  <option value="in_progress">En développement</option>
+                  <option value="beta">Version bêta</option>
+                  <option value="completed">Projet finalisé</option>
+                </select>
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
                 Lien GitHub / GitLab
                 <input
                   className="portal-input mt-2"
@@ -317,7 +381,17 @@ export default function ProjetsPage() {
                 />
               </label>
               <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
-                Image de couverture (facultatif)
+                Documentation
+                <input
+                  className="portal-input mt-2"
+                  type="url"
+                  value={form.documentation_url}
+                  onChange={(event) => setForm({ ...form, documentation_url: event.target.value })}
+                  placeholder="https://docs.mon-projet…"
+                />
+              </label>
+              <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
+                Image de couverture
                 <input
                   className="portal-input mt-2"
                   type="url"
@@ -326,6 +400,47 @@ export default function ProjetsPage() {
                   placeholder="https://…"
                 />
               </label>
+              <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
+                Captures supplémentaires, séparées par des virgules
+                <input
+                  className="portal-input mt-2"
+                  value={form.screenshot_urls}
+                  onChange={(event) => setForm({ ...form, screenshot_urls: event.target.value })}
+                  placeholder="https://capture-1…, https://capture-2…"
+                />
+              </label>
+              <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
+                Membres de l’équipe — un par ligne, au format Nom | Rôle
+                <textarea
+                  className="portal-input mt-2 min-h-28 resize-y"
+                  value={form.team_members}
+                  onChange={(event) => setForm({ ...form, team_members: event.target.value })}
+                  placeholder={"Sara Amrani | Product designer\nOmar Bennani | Développeur backend"}
+                />
+              </label>
+              <label className="sm:col-span-2 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-sky-600"
+                  checked={form.seeking_collaborators}
+                  onChange={(event) => setForm({ ...form, seeking_collaborators: event.target.checked })}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-slate-900">Nous recherchons des collaborateurs</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">Affiche le bouton « Rejoindre le projet » sur la fiche publique.</span>
+                </span>
+              </label>
+              {form.seeking_collaborators && (
+                <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
+                  Profils recherchés, séparés par des virgules
+                  <input
+                    className="portal-input mt-2"
+                    value={form.collaborator_roles}
+                    onChange={(event) => setForm({ ...form, collaborator_roles: event.target.value })}
+                    placeholder="Data engineer, UX designer, Développeur mobile"
+                  />
+                </label>
+              )}
 
               {formError && (
                 <p className="sm:col-span-2 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">

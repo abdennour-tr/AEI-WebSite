@@ -6,6 +6,7 @@ import {
   BookOpen,
   Briefcase,
   Download,
+  FolderGit2,
   Heart,
   LoaderCircle,
   MapPin,
@@ -28,6 +29,7 @@ const filters = [
   { value: "course", label: "Cours" },
   { value: "opportunity", label: "Opportunités" },
   { value: "advertisement", label: "Bons plans" },
+  { value: "project", label: "Projets" },
 ];
 
 const typeMeta = {
@@ -45,6 +47,11 @@ const typeMeta = {
     label: "Bon plan",
     icon: Megaphone,
     accent: "bg-amber-50 text-amber-700",
+  },
+  project: {
+    label: "Projet",
+    icon: FolderGit2,
+    accent: "bg-violet-50 text-violet-700",
   },
 };
 
@@ -72,7 +79,7 @@ export default function FavoritePage() {
   const filteredFavorites = favorites.filter((item) => {
     const searchable = `${item.titre || item.title || ""} ${
       item.description || ""
-    } ${item.entreprise || ""} ${item.categorie || ""}`.toLowerCase();
+    } ${item.entreprise || ""} ${item.categorie || ""} ${item.tech || ""}`.toLowerCase();
     return (
       (activeFilter === "all" || item.favoriteType === activeFilter) &&
       searchable.includes(search.toLowerCase())
@@ -108,10 +115,10 @@ export default function FavoritePage() {
         icon={Heart}
         eyebrow="Ma sélection"
         title="Mes favoris"
-        description="Retrouvez au même endroit vos cours, opportunités et bons plans enregistrés."
+        description="Retrouvez au même endroit vos cours, opportunités, projets et bons plans enregistrés."
       />
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {filters.slice(1).map((filter) => {
           const meta = typeMeta[filter.value];
           const TypeIcon = meta.icon;
@@ -247,6 +254,12 @@ export default function FavoritePage() {
                     </div>
                   )}
 
+                  {item.favoriteType === "project" && (
+                    <p className="mt-2 text-sm text-slate-600">
+                      {item.field_of_study || "Projet étudiant"} · {item.academic_year || "Année non précisée"}
+                    </p>
+                  )}
+
                   {item.description && (
                     <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
                       {item.description}
@@ -276,6 +289,14 @@ export default function FavoritePage() {
                       >
                         Voir le bon plan <ArrowRight className="h-4 w-4" />
                       </a>
+                    )}
+                    {item.favoriteType === "project" && (
+                      <Link
+                        to={`/projets/${item.id}`}
+                        className="portal-primary-button w-full"
+                      >
+                        Voir la fiche projet <ArrowRight className="h-4 w-4" />
+                      </Link>
                     )}
                   </div>
                 </div>

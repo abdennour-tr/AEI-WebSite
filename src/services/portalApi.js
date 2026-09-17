@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { studentProjectsApi } from "@/services/projectsApi";
 
 function client() {
   if (!supabase) {
@@ -393,10 +394,11 @@ export const advertisementsApi = {
 
 export const favoritesApi = {
   list: async () => {
-    const [courses, opportunities, advertisements] = await Promise.all([
+    const [courses, opportunities, advertisements, projects] = await Promise.all([
       coursesApi.listFavorites(),
       opportunitiesApi.listFavorites(),
       advertisementsApi.listFavorites(),
+      studentProjectsApi.listFavorites().catch(() => []),
     ]);
 
     return [
@@ -409,6 +411,7 @@ export const favoritesApi = {
         ...item,
         favoriteType: "advertisement",
       })),
+      ...projects.map((item) => ({ ...item, favoriteType: "project" })),
     ].sort(
       (first, second) =>
         new Date(second.favoriteCreatedAt || 0) -
@@ -421,6 +424,9 @@ export const favoritesApi = {
     }
     if (item.favoriteType === "opportunity") {
       return opportunitiesApi.setFavorite(item.id, false);
+    }
+    if (item.favoriteType === "project") {
+      return studentProjectsApi.setFavorite(item.id, false);
     }
     return advertisementsApi.setFavorite(item.id, false);
   },

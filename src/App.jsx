@@ -22,6 +22,7 @@ import ConnexionPage from "./pages/connexion";
 import ClubsPage from "./pages/clubs";
 import ClubDetailsPage from "./pages/club-details";
 import PublicProjectsPage from "./pages/projects";
+import ProjectDetailsPage from "./pages/project-details";
 import OnboardingPage from "./pages/onboarding";
 import ClubAdminLoginPage from "./pages/club-admin-login";
 import ClubAdminDashboardPage from "./pages/club-admin-dashboard";
@@ -58,6 +59,7 @@ function App() {
             <Route path="/clubs" element={<ClubsPage />} />
             <Route path="/clubs/:clubId" element={<ClubDetailsPage />} />
             <Route path="/projets" element={<PublicProjectsPage />} />
+            <Route path="/projets/:projectId" element={<ProjectDetailsPage />} />
             <Route path="/cours" element={<CoursPage />} />
             <Route path="/favori" element={<FavoritePage />} />
             <Route path="/chatbot" element={<ChatbotAIPage />} />
