@@ -5,6 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 export default function ProtectedRoute({ children }) {
   const { loading, session } = useAuth();
   const location = useLocation();
+  const isOnboardingPreview =
+    import.meta.env.DEV &&
+    location.pathname === "/bienvenue" &&
+    new URLSearchParams(location.search).has("onboarding-preview");
+
+  if (isOnboardingPreview) return children;
 
   if (loading) {
     return (

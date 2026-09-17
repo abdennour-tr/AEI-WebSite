@@ -88,6 +88,49 @@ export function AuthProvider({ children }) {
         if (!supabase) return { error: null };
         return supabase.auth.signOut();
       },
+      async completeOnboarding(preferences) {
+        if (!supabase || !session?.user) {
+          return { error: new Error("Votre session a expiré. Reconnectez-vous.") };
+        }
+
+        const fullName = preferences.fullName.trim();
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ full_name: fullName })
+          .eq("id", session.user.id);
+
+        if (profileError) return { error: profileError };
+
+        const completedAt = new Date().toISOString();
+        const { data, error } = await supabase.auth.updateUser({
+          data: {
+            ...session.user.user_metadata,
+            full_name: fullName,
+            onboarding_completed: true,
+            onboarding_completed_at: completedAt,
+            onboarding: {
+              level: preferences.level,
+              specialty: preferences.specialty,
+              interests: preferences.interests,
+              goals: preferences.goals,
+              availability: preferences.availability,
+            },
+          },
+        });
+
+        if (error) return { error };
+
+        if (data.user) {
+          setSession((current) =>
+            current ? { ...current, user: data.user } : current
+          );
+        }
+        setProfile((current) =>
+          current ? { ...current, full_name: fullName } : current
+        );
+
+        return { error: null, user: data.user };
+      },
       async refreshProfile() {
         if (!supabase || !session?.user?.id) return null;
         const { data } = await supabase

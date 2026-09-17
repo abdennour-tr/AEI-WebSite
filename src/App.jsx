@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import OnboardingGate from "./components/OnboardingGate";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -19,6 +20,7 @@ import ProfilePage from "./pages/profile";
 import ConnexionPage from "./pages/connexion";
 import ClubsPage from "./pages/clubs";
 import PublicProjectsPage from "./pages/projects";
+import OnboardingPage from "./pages/onboarding";
 
 function App() {
   return (
@@ -26,11 +28,21 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/connexion" element={<ConnexionPage />} />
+          <Route
+            path="/bienvenue"
+            element={
+              <ProtectedRoute>
+                <OnboardingPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             element={
               <ProtectedRoute>
-                <Layout />
+                <OnboardingGate>
+                  <Layout />
+                </OnboardingGate>
               </ProtectedRoute>
             }
           >
