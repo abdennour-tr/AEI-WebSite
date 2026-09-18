@@ -1,6 +1,6 @@
-import { LoaderCircle } from "lucide-react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
 
 export default function ProtectedRoute({ children }) {
   const { loading, session } = useAuth();
@@ -14,10 +14,13 @@ export default function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <div className="flex items-center gap-3 text-sm font-semibold text-slate-300">
-          <LoaderCircle className="h-5 w-5 animate-spin text-sky-400" />
-          Vérification de votre session…
+      <div className="min-h-screen bg-slate-950 px-4 py-12 text-white sm:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8 h-32 animate-pulse rounded-3xl bg-white/10" />
+          <LoadingSkeleton cards={3} />
+          <p className="mt-6 text-center text-sm font-semibold text-slate-400">
+            Préparation de votre espace étudiant…
+          </p>
         </div>
       </div>
     );

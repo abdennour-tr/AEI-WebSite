@@ -1,295 +1,190 @@
-import { createElement } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  Bot,
-  BrainCircuit,
-  BriefcaseBusiness,
-  Code2,
-  HandHeart,
-  HeartHandshake,
-  Home,
-  Lightbulb,
-  Network,
-  Rocket,
-  ShieldCheck,
-  ShoppingBag,
+  Bell,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FolderGit2,
+  Heart,
   Sparkles,
   UsersRound,
-  Wrench,
 } from "lucide-react";
 import clubs from "@/data/Clubs";
+import fallbackEvents from "@/data/Events";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
+import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/hooks/useAuth";
+import { agendaApi, formatAgendaEvent } from "@/services/agendaApi";
+import { clubApplicationsApi, favoritesApi, notificationsApi } from "@/services/portalApi";
 
-const clubIcons = {
-  code: Code2,
-  brain: BrainCircuit,
-  robot: Bot,
-  shield: ShieldCheck,
-  rocket: Rocket,
-  lightbulb: Lightbulb,
-  heart: HandHeart,
+const quickActions = [
+  ["Découvrir les clubs", "Trouvez une équipe et candidatez", "/clubs", UsersRound, "bg-violet-50 text-violet-700"],
+  ["Consulter l’agenda", "Ateliers, conférences et compétitions", "/evenements", CalendarDays, "bg-sky-50 text-sky-700"],
+  ["Explorer les cours", "Supports et ressources pédagogiques", "/cours", BookOpen, "bg-emerald-50 text-emerald-700"],
+  ["Voir les projets", "Réalisations publiques des étudiants", "/projets", FolderGit2, "bg-amber-50 text-amber-700"],
+];
+
+const greeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Bonjour";
+  if (hour < 18) return "Bon après-midi";
+  return "Bonsoir";
 };
 
-const secondaryServices = [
-  {
-    title: "Cours & ressources",
-    description: "Supports et documents pour accompagner votre parcours académique.",
-    to: "/cours",
-    icon: BrainCircuit,
-  },
-  {
-    title: "Stages & opportunités",
-    description: "Offres et expériences pour préparer votre avenir professionnel.",
-    to: "/stages-opportunites",
-    icon: BriefcaseBusiness,
-  },
-  {
-    title: "Colocation",
-    description: "Annonces de logements partagées par la communauté étudiante.",
-    to: "/colocation",
-    icon: Home,
-  },
-  {
-    title: "Marketplace",
-    description: "Acheter et vendre du matériel entre étudiants de l’école.",
-    to: "/marketplace",
-    icon: ShoppingBag,
-  },
-];
-
-const benefits = [
-  {
-    title: "Créer ses premiers liens",
-    description: "Rencontrez des étudiants d’autres promotions autour d’intérêts communs.",
-    icon: UsersRound,
-  },
-  {
-    title: "Apprendre en pratiquant",
-    description: "Passez des cours à des projets, ateliers et défis concrets en équipe.",
-    icon: Wrench,
-  },
-  {
-    title: "Développer son réseau",
-    description: "Échangez avec des intervenants, des entreprises et d’autres écoles.",
-    icon: Network,
-  },
-  {
-    title: "Prendre confiance",
-    description: "Organisez, présentez, collaborez et découvrez les rôles qui vous correspondent.",
-    icon: HeartHandshake,
-  },
-];
-
-function SectionHeading({ eyebrow, title, description, action }) {
-  return (
-    <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="max-w-3xl">
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-sky-700">
-          {eyebrow}
-        </p>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-          {title}
-        </h2>
-        {description && (
-          <p className="mt-2 text-base leading-7 text-slate-600">{description}</p>
-        )}
-      </div>
-      {action}
-    </div>
-  );
+function recommendClubs(metadata) {
+  const preferences = JSON.stringify(metadata?.onboarding || {}).toLocaleLowerCase("fr");
+  const scored = clubs.map((club) => {
+    const content = `${club.name} ${club.category} ${club.tagline} ${club.activities.join(" ")}`.toLocaleLowerCase("fr");
+    const keywords = preferences.split(/[^a-zà-ÿ0-9]+/).filter((word) => word.length > 3);
+    return { club, score: keywords.filter((word) => content.includes(word)).length };
+  });
+  return scored.sort((a, b) => b.score - a.score).slice(0, 3).map(({ club }) => club);
 }
 
 export default function HomePage() {
-  const featuredClubs = clubs.slice(0, 3);
+  const { user, profile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [snapshot, setSnapshot] = useState({
+    favorites: [],
+    notifications: [],
+    applications: [],
+    events: fallbackEvents.map(formatAgendaEvent),
+  });
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "étudiant";
+  const recommendations = useMemo(() => recommendClubs(user?.user_metadata), [user?.user_metadata]);
+
+  useEffect(() => {
+    let active = true;
+    const loadDashboard = async () => {
+      const [favorites, notifications, applications, events] = await Promise.allSettled([
+        favoritesApi.list(),
+        notificationsApi.list(),
+        clubApplicationsApi.listMine(),
+        agendaApi.list(),
+      ]);
+      if (!active) return;
+      setSnapshot({
+        favorites: favorites.status === "fulfilled" ? favorites.value : [],
+        notifications: notifications.status === "fulfilled" ? notifications.value : [],
+        applications: applications.status === "fulfilled" ? applications.value : [],
+        events:
+          events.status === "fulfilled" && events.value.length
+            ? events.value
+            : fallbackEvents.map(formatAgendaEvent),
+      });
+      setLoading(false);
+    };
+    loadDashboard();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const nextEvents = snapshot.events
+    .filter((event) => new Date(event.starts_at) >= new Date())
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
+    .slice(0, 3);
+  const unread = snapshot.notifications.filter((item) => !item.read_at).length;
+  const accepted = snapshot.applications.filter((item) => item.status === "accepted").length;
 
   return (
-    <div className="bg-slate-50 text-slate-950">
-      <section className="relative isolate overflow-hidden bg-slate-950 px-5 py-12 text-white sm:px-8 sm:py-16 lg:px-12 lg:py-20">
-        <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-sky-500/20 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.12fr_0.88fr]">
+    <div className="portal-page">
+      <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-sky-500/15 blur-3xl" />
+        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs font-semibold text-sky-100 backdrop-blur-sm">
-              <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-              Le point d’entrée vers la vie associative de l’ENIAD
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1.5 text-xs font-bold text-sky-200">
+              <Sparkles className="h-3.5 w-3.5" /> Tableau de bord étudiant
             </div>
-            <h1 className="max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-              Trouvez votre place,
-              <span className="block bg-linear-to-r from-sky-300 to-cyan-200 bg-clip-text text-transparent">
-                rejoignez un club.
-              </span>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+              {greeting()}, {displayName}
             </h1>
-            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-              Découvrez tous les clubs de l’école, leurs activités et la manière de les intégrer. Le portail vous aide à rencontrer votre communauté, apprendre par la pratique et vous engager dès vos premiers jours à l’ENIAD.
+            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-300">
+              Retrouvez vos prochaines activités, vos candidatures et les contenus qui correspondent à vos intérêts.
             </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                to="/clubs"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-sky-950/30 transition hover:bg-sky-400"
-              >
-                Explorer les clubs <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to="/clubs#rejoindre"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/10"
-              >
-                Comment rejoindre un club
-              </Link>
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-3 border-t border-white/10 pt-6">
-              {["Technologie", "IA & Data", "Robotique", "Solidarité", "Entrepreneuriat"].map((domain) => (
-                <span key={domain} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300">
-                  {domain}
-                </span>
-              ))}
-            </div>
           </div>
-
-          <div className="relative mx-auto w-full max-w-lg lg:mx-0 lg:ml-auto">
-            <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-5">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">
-                    Votre parcours d’intégration
-                  </p>
-                  <p className="mt-1 text-lg font-bold">Commencez par ce qui vous passionne</p>
-                </div>
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-400/15 text-sky-300">
-                  <UsersRound className="h-5 w-5" />
-                </span>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {[
-                  ["01", "Découvrez les clubs", "Missions, activités et projets récents"],
-                  ["02", "Rencontrez les équipes", "Stands, événements et sessions ouvertes"],
-                  ["03", "Passez à l’action", "Contactez le club et choisissez votre pôle"],
-                ].map(([number, title, description]) => (
-                  <div key={number} className="flex items-start gap-4 rounded-2xl bg-white p-4 text-slate-900">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-xs font-bold text-sky-700">
-                      {number}
-                    </span>
-                    <div>
-                      <p className="font-bold">{title}</p>
-                      <p className="mt-1 text-sm text-slate-500">{description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                to="/clubs"
-                className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold transition hover:bg-white/10"
-              >
-                Voir les {clubs.length} clubs recensés
-                <ArrowRight className="h-4 w-4 text-cyan-300" />
-              </Link>
-            </div>
-          </div>
+          <Link to="/profile" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-50">
+            Compléter mon profil <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 
-      <main className="mx-auto max-w-7xl space-y-20 px-5 py-14 sm:px-8 sm:py-18 lg:px-12 lg:py-20">
-        <section>
-          <SectionHeading
-            eyebrow="Clubs à découvrir"
-            title="Choisissez un domaine, rencontrez une équipe"
-            description="Chaque club propose une façon différente d’apprendre, de contribuer et de créer des liens durables au sein de l’école."
-            action={
-              <Link to="/clubs" className="inline-flex items-center gap-1 text-sm font-bold text-sky-700 hover:text-sky-900">
-                Voir tous les clubs <ArrowRight className="h-4 w-4" />
+      {loading ? (
+        <LoadingSkeleton cards={4} />
+      ) : (
+        <>
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              [snapshot.favorites.length, "favoris", Heart, "text-rose-600 bg-rose-50", "/favori"],
+              [nextEvents.length, "événements à venir", CalendarDays, "text-sky-700 bg-sky-50", "/evenements"],
+              [snapshot.applications.length, "candidatures clubs", CheckCircle2, "text-emerald-700 bg-emerald-50", "/clubs"],
+              [unread, "notifications non lues", Bell, "text-amber-700 bg-amber-50", "/favori"],
+            ].map(([value, label, Icon, color, to]) => (
+              <Link key={label} to={to} className="portal-panel group flex items-center gap-4 p-4 transition hover:border-sky-200 sm:p-5">
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></span>
+                <span><strong className="block text-2xl font-bold text-slate-950">{value}</strong><span className="mt-0.5 block text-sm font-semibold text-slate-500">{label}</span></span>
               </Link>
-            }
-          />
+            ))}
+          </section>
 
-          <div className="grid gap-5 lg:grid-cols-3">
-            {featuredClubs.map((club) => {
-              const Icon = clubIcons[club.icon];
-              return (
-                <Link
-                  key={club.id}
-                  to="/clubs"
-                  className="group portal-card flex flex-col p-6"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
-                      <Icon className="h-6 w-6" />
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                      {club.category}
-                    </span>
-                  </div>
-                  <h3 className="mt-6 text-xl font-bold text-slate-950">{club.name}</h3>
-                  <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{club.tagline}</p>
-                  <span className="mt-6 inline-flex items-center gap-1 text-sm font-bold text-sky-700">
-                    Découvrir le club <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-                  </span>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
+            <section className="portal-panel">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">À votre agenda</p>
+                  <h2 className="mt-1 text-2xl font-bold text-slate-950">Prochains rendez-vous</h2>
+                </div>
+                <Link to="/evenements" className="text-sm font-bold text-sky-700 hover:text-sky-900">Agenda complet</Link>
+              </div>
+              {nextEvents.length ? (
+                <div className="mt-6 grid gap-3">
+                  {nextEvents.map((event) => (
+                    <Link key={`${event.source || "event"}-${event.id}`} to="/evenements" className="flex items-center gap-4 rounded-2xl border border-slate-200 p-4 transition hover:border-sky-200 hover:bg-sky-50/50">
+                      <span className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-950 text-white"><strong className="text-lg leading-none">{event.dayNumber}</strong><span className="mt-1 text-[10px] font-bold text-sky-300">{event.monthShort}</span></span>
+                      <span className="min-w-0 flex-1"><strong className="block truncate text-slate-950">{event.title}</strong><span className="mt-1 flex items-center gap-1.5 text-sm text-slate-500"><Clock3 className="h-3.5 w-3.5" /> {event.timeLabel} · {event.organizer || "AEI ENIAD"}</span></span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6"><EmptyState icon={CalendarDays} title="Aucun événement programmé" description="Consultez l’agenda plus tard ou explorez les clubs pour découvrir leurs prochaines activités." actionLabel="Explorer les clubs" to="/clubs" /></div>
+              )}
+            </section>
+
+            <section className="portal-panel">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Pour vous</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">Clubs recommandés</h2>
+              <div className="mt-6 space-y-3">
+                {recommendations.map((club) => (
+                  <Link key={club.id} to={`/clubs/${club.id}`} className="group flex items-center gap-3 rounded-2xl bg-slate-50 p-4 transition hover:bg-violet-50">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white font-bold text-violet-700 shadow-sm">{club.shortName.slice(0, 2)}</span>
+                    <span className="min-w-0 flex-1"><strong className="block truncate text-slate-950">{club.name}</strong><span className="mt-0.5 block truncate text-sm text-slate-500">{club.category}</span></span>
+                    <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-1" />
+                  </Link>
+                ))}
+              </div>
+              {accepted > 0 && <p className="mt-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">Vous êtes déjà accepté dans {accepted} club{accepted > 1 ? "s" : ""}.</p>}
+            </section>
+          </div>
+
+          <section>
+            <div className="mb-5"><p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">Accès rapide</p><h2 className="mt-1 text-2xl font-bold text-slate-950">Continuer votre parcours</h2></div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {quickActions.map(([title, description, to, Icon, color]) => (
+                <Link key={title} to={to} className="portal-card group p-5">
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></span>
+                  <h3 className="mt-5 font-bold text-slate-950">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
+                  <span className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-sky-700">Accéder <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
                 </Link>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
-          <SectionHeading
-            eyebrow="Bien plus qu’une activité"
-            title="Ce que la vie associative vous apporte"
-            description="Intégrer un club, c’est trouver plus rapidement ses repères et acquérir des expériences qui complètent les cours."
-          />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {benefits.map(({ title, description, icon }) => (
-              <article key={title} className="rounded-2xl bg-slate-50 p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm">
-                  {createElement(icon, { className: "h-5 w-5" })}
-                </span>
-                <h3 className="mt-4 font-bold text-slate-950">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <SectionHeading
-            eyebrow="Services complémentaires"
-            title="Le reste du portail vous accompagne ensuite"
-            description="Une fois intégré à la communauté, retrouvez les ressources académiques et les services pratiques utiles au quotidien."
-          />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {secondaryServices.map(({ title, description, to, icon }) => (
-              <Link key={title} to={to} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-sky-200 hover:shadow-lg">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-sky-50 group-hover:text-sky-700">
-                  {createElement(icon, { className: "h-5 w-5" })}
-                </span>
-                <h3 className="mt-4 font-bold text-slate-950">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-                <span className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-sky-700">
-                  Accéder <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="relative overflow-hidden rounded-3xl bg-sky-700 px-6 py-10 text-white shadow-xl shadow-sky-100 sm:px-10 lg:flex lg:items-center lg:justify-between lg:px-12">
-          <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full border-[40px] border-white/5" />
-          <div className="relative max-w-2xl">
-            <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
-              <HeartHandshake className="h-6 w-6" />
-            </span>
-            <h2 className="text-2xl font-bold sm:text-3xl">Votre intégration commence par une rencontre.</h2>
-            <p className="mt-3 text-base leading-7 text-sky-100">
-              Explorez les clubs, choisissez une première activité et contactez l’équipe qui vous ressemble.
-            </p>
-          </div>
-          <Link to="/clubs" className="relative mt-7 inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-sky-800 transition hover:bg-sky-50 lg:mt-0">
-            Trouver mon club <ArrowRight className="h-4 w-4" />
-          </Link>
-        </section>
-      </main>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

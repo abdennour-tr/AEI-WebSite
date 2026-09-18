@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import fallbackProjects from "@/data/my-projects";
 import { studentProjectsApi } from "@/services/projectsApi";
+import ShareButton from "@/components/ShareButton";
 
 const stageLabels = {
   idea: "Idée validée",
@@ -165,6 +166,7 @@ export default function ProjectDetailsPage() {
               {project.repository_url && <a href={project.repository_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-950"><Github className="h-4 w-4" /> GitHub / GitLab</a>}
               {project.demo_url && <a href={project.demo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950"><ExternalLink className="h-4 w-4" /> Voir la démonstration</a>}
               {project.documentation_url && <a href={project.documentation_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-bold text-white"><FileText className="h-4 w-4" /> Documentation</a>}
+              <ShareButton title={project.title} text={project.description || project.desc} path={`/projets/${project.id}`} className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10" />
             </div>
           </div>
 

@@ -13,6 +13,9 @@ import evenement from "../assets/icons/un-evenement.png";
 import { LogOut, Menu, X } from "lucide-react";
 import Footer from "../components/Footer";
 import { useAuth } from "@/hooks/useAuth";
+import GlobalSearch from "@/components/GlobalSearch";
+import NotificationCenter from "@/components/NotificationCenter";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function ScrollToTopDiv() {
   const { pathname, hash } = useLocation();
@@ -63,7 +66,7 @@ export default function MainNavigation({ children }) {
   ];
 
   const topLinks = [
-    { name: "Accueil", to: "/" },
+    { name: "Tableau de bord", to: "/" },
     { name: "Clubs", to: "/clubs" },
     { name: "Projets", to: "/projets" },
     { name: "Cours", to: "/cours" },
@@ -169,7 +172,7 @@ export default function MainNavigation({ children }) {
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col ml-0 transition-all duration-300">
         {/* TOP NAVBAR */}
-        <header className="z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 text-slate-900 md:px-6">
+        <header className="z-30 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 text-slate-900 sm:px-4 md:px-6">
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
             <button
@@ -182,7 +185,7 @@ export default function MainNavigation({ children }) {
           </div>
 
           {/* Navigation desktop */}
-          <nav className="hidden items-center gap-1 text-sm font-semibold lg:flex">
+          <nav className="hidden shrink-0 items-center gap-1 text-sm font-semibold 2xl:flex">
             {topLinks.map((link, index) => (
               <Link
                 key={index}
@@ -198,10 +201,15 @@ export default function MainNavigation({ children }) {
             ))}
           </nav>
 
-          {/* Boutons connexion / inscription */}
-          <div className="flex items-center">
+          <div className="ml-auto flex min-w-0 items-center gap-2 2xl:ml-2">
+            <GlobalSearch />
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            <NotificationCenter />
+            <ThemeToggle />
             <button
-              className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
               onClick={async () => {
                 await signOut();
               }}

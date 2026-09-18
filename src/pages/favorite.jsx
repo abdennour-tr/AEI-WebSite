@@ -9,7 +9,6 @@ import {
   Check,
   FolderGit2,
   Heart,
-  LoaderCircle,
   MapPin,
   Megaphone,
   Search,
@@ -20,6 +19,7 @@ import {
 import FavoriteCourses from "@/data/FavoriteCourses";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { favoritesApi } from "@/services/portalApi";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
 
 const fallbackFavorites = FavoriteCourses.map((course) => ({
   ...course,
@@ -390,9 +390,7 @@ export default function FavoritePage() {
           </div>
 
           {loading && (
-            <div className="portal-empty flex items-center justify-center gap-2">
-              <LoaderCircle className="h-5 w-5 animate-spin" /> Synchronisation des favoris…
-            </div>
+            <LoadingSkeleton cards={4} compact />
           )}
 
           {error && !loading && (

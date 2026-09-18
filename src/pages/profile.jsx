@@ -1,638 +1,286 @@
-import p from "../assets/profile.jpg";
-import { useState, useRef } from "react";
-import { Trash2, Lock, User, Check } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Award,
+  Check,
+  Github,
+  Globe2,
+  Linkedin,
+  LoaderCircle,
+  LockKeyhole,
+  Plus,
+  Save,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+  UserRound,
+  X,
+} from "lucide-react";
+import fallbackAvatar from "@/assets/profile.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { listStudentBadges } from "@/services/experienceApi";
+
+const fallbackBadge = {
+  badge_code: "aei_member",
+  title: "Membre AEI",
+  description: "Profil étudiant actif sur le portail de la communauté.",
+  icon: "shield",
+};
+
+function TagEditor({ label, values, onChange, placeholder }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const value = draft.trim();
+    if (!value || values.includes(value)) return;
+    onChange([...values, value].slice(0, 12));
+    setDraft("");
+  };
+  return (
+    <div>
+      <label className="text-sm font-bold text-slate-700">{label}</label>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              add();
+            }
+          }}
+          className="portal-input"
+          placeholder={placeholder}
+        />
+        <button type="button" onClick={add} className="portal-secondary-button shrink-0 px-3" aria-label={`Ajouter ${label.toLowerCase()}`}>
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="mt-3 flex min-h-9 flex-wrap gap-2">
+        {values.map((value) => (
+          <span key={value} className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-800">
+            {value}
+            <button type="button" onClick={() => onChange(values.filter((item) => item !== value))} className="rounded-full p-0.5 hover:bg-sky-100" aria-label={`Retirer ${value}`}><X className="h-3.5 w-3.5" /></button>
+          </span>
+        ))}
+        {values.length === 0 && <p className="text-sm text-slate-400">Ajoutez au moins un élément pour personnaliser votre profil.</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { user, profile: accountProfile, refreshProfile } = useAuth();
-  const initial = {
-    avatar: p,
-    nom:
-      accountProfile?.full_name ||
-      user?.user_metadata?.full_name ||
-      user?.email?.split("@")[0] ||
-      "Étudiant AEI",
-    email: user?.email || "",
-    role: accountProfile?.role === "admin" ? "Administrateur" : "Étudiant",
-    phone: accountProfile?.phone || "",
-    bio: accountProfile?.bio || "",
-    lastLogin: user?.last_sign_in_at
-      ? new Intl.DateTimeFormat("fr-FR", {
-          dateStyle: "medium",
-          timeStyle: "short",
-        }).format(new Date(user.last_sign_in_at))
-      : "Session actuelle",
-    twoFA: false,
-    hideEmail: accountProfile?.hide_email ?? true,
-  };
-
-  // États UI
-  const [profile, setProfile] = useState(initial);
-  const [editing, setEditing] = useState(false);
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(initial.avatar);
-  const [saving, setSaving] = useState(false);
-  const [profileMsg, setProfileMsg] = useState("");
-
-  // Password change
-  const [currentPwd, setCurrentPwd] = useState("");
-  const [newPwd, setNewPwd] = useState("");
-  const [confirmPwd, setConfirmPwd] = useState("");
-  const [pwdMsg, setPwdMsg] = useState("");
-
-  // Delete account modal
-  const [showDelete, setShowDelete] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
-
-  // Activity (mock)
-  const [activity] = useState([
-    {
-      id: 1,
-      text: "Connexion depuis Firefox (Windows)",
-      at: "16 septembre 2026 · 16:10",
-    },
-    {
-      id: 2,
-      text: "Téléchargement : 'linear_algebra.pdf'",
-      at: "12 septembre 2026 · 09:22",
-    },
-    { id: 3, text: "Modification profil", at: "4 septembre 2026 · 18:41" },
-  ]);
-
   const fileInputRef = useRef(null);
+  const [form, setForm] = useState({
+    fullName: "",
+    phone: "",
+    bio: "",
+    skills: [],
+    interests: [],
+    portfolioUrl: "",
+    githubUrl: "",
+    linkedinUrl: "",
+    hideEmail: true,
+  });
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(fallbackAvatar);
+  const [badges, setBadges] = useState([fallbackBadge]);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
 
-  const pwdStrength = [
-    newPwd.length >= 8,
-    /[A-Z]/.test(newPwd),
-    /[0-9]/.test(newPwd),
-    /[\W_]/.test(newPwd),
-  ].filter(Boolean).length;
-  const passwordsMismatch = Boolean(confirmPwd && newPwd !== confirmPwd);
+  useEffect(() => {
+    setForm({
+      fullName: accountProfile?.full_name || user?.user_metadata?.full_name || "",
+      phone: accountProfile?.phone || "",
+      bio: accountProfile?.bio || "",
+      skills: Array.isArray(accountProfile?.skills) ? accountProfile.skills : [],
+      interests: Array.isArray(accountProfile?.interests)
+        ? accountProfile.interests
+        : Array.isArray(user?.user_metadata?.onboarding?.interests)
+          ? user.user_metadata.onboarding.interests
+          : [],
+      portfolioUrl: accountProfile?.portfolio_url || "",
+      githubUrl: accountProfile?.github_url || "",
+      linkedinUrl: accountProfile?.linkedin_url || "",
+      hideEmail: accountProfile?.hide_email ?? true,
+    });
+  }, [accountProfile, user]);
 
-  const handleSaveProfile = async () => {
+  useEffect(() => {
+    if (!supabase || !user) return;
+    supabase
+      .from("public_profiles")
+      .select("avatar_url")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => data?.avatar_url && setAvatarPreview(data.avatar_url));
+    listStudentBadges().then((items) => setBadges(items.length ? items : [fallbackBadge]));
+  }, [user]);
+
+  const completeness = useMemo(() => {
+    const fields = [form.fullName, form.bio, form.skills.length, form.interests.length, form.portfolioUrl || form.githubUrl || form.linkedinUrl];
+    return Math.round((fields.filter(Boolean).length / fields.length) * 100);
+  }, [form]);
+
+  const saveProfile = async () => {
     if (!supabase || !user) return;
     setSaving(true);
-    setProfileMsg("");
-
+    setMessage("");
     try {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          full_name: profile.nom.trim(),
-          phone: profile.phone.trim() || null,
-          bio: profile.bio.trim() || null,
-          hide_email: profile.hideEmail,
-        })
-        .eq("id", user.id);
-
-      if (profileError) throw profileError;
-
+      let avatarUrl = avatarPreview;
       if (avatarFile) {
         const extension = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
         const path = `${user.id}/avatar.${extension}`;
-        const { error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(path, avatarFile, { upsert: true });
-
+        const { error: uploadError } = await supabase.storage.from("avatars").upload(path, avatarFile, { upsert: true });
         if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-        const { error: publicProfileError } = await supabase
-          .from("public_profiles")
-          .update({
-            display_name: profile.nom.trim(),
-            avatar_url: data.publicUrl,
-          })
-          .eq("user_id", user.id);
-
-        if (publicProfileError) throw publicProfileError;
-        setAvatarPreview(data.publicUrl);
+        avatarUrl = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
       }
 
-      await refreshProfile();
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: form.fullName.trim(),
+          phone: form.phone.trim() || null,
+          bio: form.bio.trim() || null,
+          skills: form.skills,
+          interests: form.interests,
+          portfolio_url: form.portfolioUrl.trim() || null,
+          github_url: form.githubUrl.trim() || null,
+          linkedin_url: form.linkedinUrl.trim() || null,
+          hide_email: form.hideEmail,
+        })
+        .eq("id", user.id);
+      if (profileError) throw profileError;
+
+      const { error: publicError } = await supabase
+        .from("public_profiles")
+        .update({ display_name: form.fullName.trim(), avatar_url: avatarUrl })
+        .eq("user_id", user.id);
+      if (publicError) throw publicError;
+
+      setAvatarPreview(avatarUrl);
       setAvatarFile(null);
-      setEditing(false);
-      setProfileMsg("Profil enregistré avec succès.");
+      await refreshProfile();
+      setMessage("Votre profil a été enregistré.");
     } catch (error) {
-      setProfileMsg(error.message || "Impossible d’enregistrer le profil.");
+      setMessage(error.message || "Impossible d’enregistrer le profil.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!currentPwd || !newPwd || passwordsMismatch) {
-      setPwdMsg("Vérifiez les champs de mot de passe.");
+  const changePassword = async () => {
+    if (!currentPassword || newPassword.length < 8 || !user?.email || !supabase) {
+      setPasswordMessage("Saisissez votre mot de passe actuel et un nouveau mot de passe d’au moins 8 caractères.");
       return;
     }
-    if (pwdStrength < 3) {
-      setPwdMsg(
-        "Le mot de passe est trop faible (ajoutez chiffres/symboles/majuscules)."
-      );
-      return;
-    }
-    if (!supabase || !user?.email) return;
-
-    setPwdMsg("");
     setSaving(true);
-
-    const { error: verificationError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPwd,
-    });
-
-    if (verificationError) {
-      setPwdMsg("Le mot de passe actuel est incorrect.");
+    setPasswordMessage("");
+    const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+    if (verifyError) {
+      setPasswordMessage("Le mot de passe actuel est incorrect.");
       setSaving(false);
       return;
     }
-
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPwd,
-    });
-
-    if (updateError) {
-      setPwdMsg(updateError.message);
-    } else {
-      setCurrentPwd("");
-      setNewPwd("");
-      setConfirmPwd("");
-      setPwdMsg("Mot de passe mis à jour avec succès.");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPasswordMessage(error ? error.message : "Mot de passe mis à jour avec succès.");
+    if (!error) {
+      setCurrentPassword("");
+      setNewPassword("");
     }
     setSaving(false);
   };
 
-  // Activer / désactiver 2FA (frontend toggle only) — nécessite backend + authenticator/ SMS
-  const toggle2FA = () => {
-    // Si on active, démarrer le flow d'enrôlement 2FA (QR + code)
-    setProfile((p) => ({ ...p, twoFA: !p.twoFA }));
-  };
-
-  const handleDeleteAccount = async () => {
-    if (confirmText !== "SUPPRIMER") return;
-    setSaving(true);
-    // API: suppression définitive après vérification 2FA
-    await new Promise((r) => setTimeout(r, 1000));
-    setSaving(false);
-    // rediriger ou afficher message selon flow
-    alert("Compte supprimé (simulation). Revenir à l'accueil.");
-    // window.location.href = "/";
-  };
-
-  // Accessibilité: keyboard trigger for file input
-  const onAvatarClick = () => fileInputRef.current?.click();
-
   return (
     <div className="portal-page">
-      <PageHeader
-        icon={User}
-        eyebrow="Paramètres du compte"
-        title="Mon profil"
-        description="Gérez vos informations personnelles, vos préférences et la sécurité de votre compte."
-      >
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            onClick={() => setEditing((s) => !s)}
-            className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-bold text-sky-800 transition hover:bg-sky-50"
-          >
-            {editing ? "Annuler" : "Modifier le profil"}
+      <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="group relative h-28 w-28 shrink-0 overflow-hidden rounded-3xl ring-4 ring-white/10" aria-label="Changer la photo de profil">
+            <img src={avatarPreview} alt="Photo de profil" className="h-full w-full object-cover" />
+            <span className="absolute inset-0 flex items-center justify-center bg-slate-950/70 text-sm font-bold opacity-0 transition group-hover:opacity-100"><Upload className="mr-2 h-4 w-4" /> Modifier</span>
           </button>
-          <button
-            onClick={() => setShowDelete(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15"
-            title="Supprimer le compte"
-          >
-            <Trash2 size={16} />
-            <span>Supprimer</span>
-          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            setAvatarFile(file);
+            setAvatarPreview(URL.createObjectURL(file));
+          }} />
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-400/10 px-3 py-1.5 text-xs font-bold text-violet-200"><Sparkles className="h-3.5 w-3.5" /> Profil étudiant</div>
+            <h1 className="mt-3 truncate text-3xl font-bold sm:text-4xl">{form.fullName || "Votre profil"}</h1>
+            <p className="mt-2 text-slate-300">{user?.email}</p>
+          </div>
+          <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-4 sm:w-56">
+            <div className="flex items-center justify-between text-sm"><span className="font-semibold text-slate-300">Profil complété</span><strong>{completeness}%</strong></div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-violet-400" style={{ width: `${completeness}%` }} /></div>
+          </div>
         </div>
-      </PageHeader>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column: profile card */}
-        <section className="portal-panel h-fit">
-          <div className="flex flex-col items-center text-center">
-            <div
-              onClick={onAvatarClick}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && onAvatarClick()}
-              className="mb-4 h-28 w-28 cursor-pointer overflow-hidden rounded-3xl border-4 border-white shadow-lg ring-1 ring-slate-200"
-              aria-label="Changer la photo de profil"
-              style={{ boxShadow: "0 8px 30px rgba(2,6,23,0.08)" }}
-            >
-              <img
-                src={avatarPreview}
-                alt="Avatar"
-                className="w-full h-full object-cover"
-              />
+      {message && <p className={`rounded-xl border px-4 py-3 text-sm font-semibold ${message.includes("enregistré") ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{message}</p>}
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+        <div className="space-y-6">
+          <section className="portal-panel">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-sky-50 p-2.5 text-sky-700"><UserRound className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Informations principales</h2><p className="text-sm text-slate-500">Présentez clairement votre parcours et vos objectifs.</p></div></div>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <label><span className="mb-2 block text-sm font-bold text-slate-700">Nom complet</span><input className="portal-input" value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} /></label>
+              <label><span className="mb-2 block text-sm font-bold text-slate-700">Téléphone</span><input className="portal-input" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+212 …" /></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-bold text-slate-700">À propos de vous</span><textarea className="portal-input min-h-32 resize-y" value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value.slice(0, 600) })} placeholder="Votre filière, vos objectifs et le type de projets auxquels vous souhaitez contribuer…" /></label>
             </div>
+          </section>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) {
-                  setAvatarFile(f);
-                  const reader = new FileReader();
-                  reader.onload = () => setAvatarPreview(reader.result);
-                  reader.readAsDataURL(f);
-                }
-              }}
-            />
+          <section className="portal-panel space-y-7">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-violet-50 p-2.5 text-violet-700"><Sparkles className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Compétences et intérêts</h2><p className="text-sm text-slate-500">Ils personnalisent vos recommandations.</p></div></div>
+            <TagEditor label="Compétences" values={form.skills} onChange={(skills) => setForm({ ...form, skills })} placeholder="Ex. React, Python, gestion de projet" />
+            <TagEditor label="Centres d’intérêt" values={form.interests} onChange={(interests) => setForm({ ...form, interests })} placeholder="Ex. IA, robotique, entrepreneuriat" />
+          </section>
 
-            <h2 className="text-xl font-bold text-slate-950">{profile.nom}</h2>
-            <p className="text-sm text-slate-500">{profile.role}</p>
-
-            <div className="mt-4 w-full space-y-3 text-left">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Email</span>
-                <span className="text-sm font-medium text-gray-800">
-                  {profile.hideEmail
-                    ? profile.email.replace(/(.{2})(.*)(@.*)/, "$1***$3")
-                    : profile.email}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Téléphone</span>
-                <span className="text-sm text-gray-800">{profile.phone}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
-                  Dernière connexion
-                </span>
-                <span className="text-sm text-gray-800">
-                  {profile.lastLogin}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">2-FA</span>
-                <span className="text-sm">
-                  {profile.twoFA ? (
-                    <span className="inline-flex items-center gap-1 text-green-600 font-medium">
-                      <Check size={14} /> Activé
-                    </span>
-                  ) : (
-                    <span className="text-yellow-600 font-medium">
-                      Désactivé
-                    </span>
-                  )}
-                </span>
+          <section className="portal-panel">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700"><Globe2 className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Portfolio et présence professionnelle</h2><p className="text-sm text-slate-500">Ajoutez uniquement des liens que vous souhaitez partager.</p></div></div>
+            <div className="mt-6 grid gap-5">
+              <label><span className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><Globe2 className="h-4 w-4" /> Portfolio</span><input type="url" className="portal-input" value={form.portfolioUrl} onChange={(event) => setForm({ ...form, portfolioUrl: event.target.value })} placeholder="https://votre-portfolio.com" /></label>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label><span className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><Github className="h-4 w-4" /> GitHub / GitLab</span><input type="url" className="portal-input" value={form.githubUrl} onChange={(event) => setForm({ ...form, githubUrl: event.target.value })} placeholder="https://github.com/…" /></label>
+                <label><span className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700"><Linkedin className="h-4 w-4" /> LinkedIn</span><input type="url" className="portal-input" value={form.linkedinUrl} onChange={(event) => setForm({ ...form, linkedinUrl: event.target.value })} placeholder="https://linkedin.com/in/…" /></label>
               </div>
             </div>
+            <label className="mt-6 flex items-start gap-3 rounded-xl bg-slate-50 p-4"><input type="checkbox" checked={form.hideEmail} onChange={(event) => setForm({ ...form, hideEmail: event.target.checked })} className="mt-1 h-4 w-4" /><span><strong className="block text-sm text-slate-900">Masquer mon adresse e-mail</strong><span className="mt-1 block text-sm text-slate-500">Votre e-mail reste privé sur les espaces visibles par les autres étudiants.</span></span></label>
+            <button type="button" onClick={saveProfile} disabled={saving} className="portal-primary-button mt-6 w-full sm:w-auto">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Enregistrer mon profil</button>
+          </section>
 
-            <div className="mt-6 w-full">
-              <button
-                onClick={() =>
-                  setProfile((p) => ({ ...p, hideEmail: !p.hideEmail }))
-                }
-                className="portal-secondary-button w-full"
-              >
-                {profile.hideEmail ? "Afficher l'email" : "Masquer l'email"}
-              </button>
-            </div>
-          </div>
-        </section>
+          <section className="portal-panel">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-slate-100 p-2.5 text-slate-700"><LockKeyhole className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Sécurité du compte</h2><p className="text-sm text-slate-500">Utilisez un mot de passe unique d’au moins 8 caractères.</p></div></div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2"><input type="password" className="portal-input" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Mot de passe actuel" /><input type="password" className="portal-input" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Nouveau mot de passe" /></div>
+            {passwordMessage && <p className={`mt-3 text-sm font-semibold ${passwordMessage.includes("succès") ? "text-emerald-700" : "text-rose-700"}`}>{passwordMessage}</p>}
+            <button type="button" onClick={changePassword} disabled={saving} className="portal-secondary-button mt-4">Mettre à jour le mot de passe</button>
+          </section>
+        </div>
 
-        {/* Middle column: edit & security */}
-        <section className="lg:col-span-2 space-y-6">
-          {/* Profile edit */}
-          <div className="portal-panel">
-            <h3 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-950">
-              <User size={18} /> Informations personnelles
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex flex-col">
-                <span className="text-sm text-gray-600 mb-1">Nom complet</span>
-                <input
-                  value={profile.nom}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, nom: e.target.value }))
-                  }
-                  className="portal-input disabled:bg-slate-50 disabled:text-slate-500"
-                  disabled={!editing}
-                  aria-label="Nom complet"
-                />
-              </label>
-
-              <label className="flex flex-col">
-                <span className="text-sm text-gray-600 mb-1">Téléphone</span>
-                <input
-                  value={profile.phone}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, phone: e.target.value }))
-                  }
-                  className="portal-input disabled:bg-slate-50 disabled:text-slate-500"
-                  disabled={!editing}
-                  aria-label="Téléphone"
-                />
-              </label>
-
-              <label className="md:col-span-2 flex flex-col">
-                <span className="text-sm text-gray-600 mb-1">Bio</span>
-                <textarea
-                  value={profile.bio}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, bio: e.target.value }))
-                  }
-                  rows={3}
-                  className="portal-input disabled:bg-slate-50 disabled:text-slate-500"
-                  disabled={!editing}
-                />
-              </label>
-            </div>
-
-            <div className="flex items-center gap-3 mt-4">
-              <button
-                onClick={handleSaveProfile}
-                disabled={!editing || saving}
-                className="portal-primary-button"
-              >
-                {saving ? "Enregistrement..." : "Enregistrer les modifications"}
-              </button>
-
-              <button
-                onClick={() => {
-                  // rollback demo: reset to initial (pour l'exemple)
-                  setProfile(initial);
-                  setAvatarFile(null);
-                  setAvatarPreview(initial.avatar);
-                  setEditing(false);
-                }}
-                className="portal-secondary-button"
-                disabled={!editing}
-              >
-                Réinitialiser
-              </button>
-            </div>
-            {profileMsg && (
-              <p
-                className={`mt-4 text-sm ${
-                  profileMsg.includes("succès") ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {profileMsg}
-              </p>
-            )}
-          </div>
-
-          {/* Security / Password */}
-          <div className="portal-panel">
-            <h3 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-950">
-              <Lock size={18} /> Sécurité du compte
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <label className="flex flex-col md:col-span-1">
-                <span className="text-sm text-gray-600 mb-1">
-                  Mot de passe actuel
-                </span>
-                <input
-                  value={currentPwd}
-                  onChange={(e) => setCurrentPwd(e.target.value)}
-                  type="password"
-                  className="portal-input"
-                  placeholder="••••••••"
-                />
-              </label>
-
-              <label className="flex flex-col">
-                <span className="text-sm text-gray-600 mb-1">
-                  Nouveau mot de passe
-                </span>
-                <input
-                  value={newPwd}
-                  onChange={(e) => setNewPwd(e.target.value)}
-                  type="password"
-                  className="portal-input"
-                  placeholder="Au moins 8 caractères"
-                />
-                {/* strength */}
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded overflow-hidden">
-                    <div
-                      style={{ width: `${(pwdStrength / 4) * 100}%` }}
-                      className={`h-full ${
-                        pwdStrength >= 3
-                          ? "bg-green-500"
-                          : pwdStrength === 2
-                          ? "bg-yellow-400"
-                          : "bg-red-400"
-                      }`}
-                    />
-                  </div>
-                  <span className="text-xs text-gray-600">
-                    {pwdStrength >= 3
-                      ? "Fort"
-                      : pwdStrength === 2
-                      ? "Moyen"
-                      : "Faible"}
-                  </span>
+        <aside className="space-y-6 xl:sticky xl:top-5">
+          <section className="portal-panel">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-amber-50 p-2.5 text-amber-700"><Award className="h-5 w-5" /></span><div><h2 className="font-bold text-slate-950">Mes badges</h2><p className="text-sm text-slate-500">{badges.length} obtenu{badges.length > 1 ? "s" : ""}</p></div></div>
+            <div className="mt-5 space-y-3">
+              {badges.map((badge) => (
+                <div key={badge.badge_code} className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                  <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white"><ShieldCheck className="h-5 w-5" /></span><strong className="text-slate-950">{badge.title}</strong></div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{badge.description}</p>
                 </div>
-              </label>
-
-              <label className="flex flex-col">
-                <span className="text-sm text-gray-600 mb-1">
-                  Confirmer le nouveau mot de passe
-                </span>
-                <input
-                  value={confirmPwd}
-                  onChange={(e) => setConfirmPwd(e.target.value)}
-                  type="password"
-                  className="portal-input"
-                  placeholder="Confirmer"
-                />
-              </label>
-            </div>
-
-            {(pwdMsg || passwordsMismatch) && (
-              <p
-                className={`mt-3 text-sm ${
-                  pwdMsg.includes("succès") ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {passwordsMismatch
-                  ? "Les mots de passe ne correspondent pas."
-                  : pwdMsg}
-              </p>
-            )}
-
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={handleChangePassword}
-                className="portal-primary-button"
-                disabled={saving}
-              >
-                {saving ? "Traitement..." : "Changer le mot de passe"}
-              </button>
-
-              <button
-                onClick={() => {
-                  setCurrentPwd("");
-                  setNewPwd("");
-                  setConfirmPwd("");
-                  setPwdMsg("");
-                }}
-                className="portal-secondary-button"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-
-          {/* Privacy & Connected */}
-          <div className="portal-panel grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <h4 className="font-semibold mb-3">Confidentialité</h4>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="font-medium">Masquer mon email</div>
-                  <div className="text-sm text-gray-500">
-                    Empêche l'affichage public de votre adresse.
-                  </div>
-                </div>
-                <label className="inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={profile.hideEmail}
-                    onChange={() =>
-                      setProfile((p) => ({ ...p, hideEmail: !p.hideEmail }))
-                    }
-                    className="form-checkbox h-5 w-5"
-                    aria-label="Masquer email"
-                  />
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">
-                    Authentification 2-facteurs (2FA)
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Activez 2FA pour sécuriser l'accès (SMS / Authenticator).
-                  </div>
-                </div>
-                <div>
-                  <button
-                    onClick={toggle2FA}
-                    className={`px-3 py-2 rounded-lg font-medium ${
-                      profile.twoFA
-                        ? "bg-emerald-600 text-white"
-                        : "bg-slate-100 text-slate-800"
-                    }`}
-                    aria-pressed={profile.twoFA}
-                  >
-                    {profile.twoFA ? "Désactiver" : "Activer"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-3">Comptes connectés</h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">Google</div>
-                    <div className="text-sm text-gray-500">
-                      Connexion via Google
-                    </div>
-                  </div>
-                  <div>
-                    <button className="portal-secondary-button px-3 py-2">
-                      Déconnecter
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">GitHub</div>
-                    <div className="text-sm text-gray-500">
-                      Connexion via GitHub
-                    </div>
-                  </div>
-                  <div>
-                    <button className="portal-secondary-button px-3 py-2">
-                      Déconnecter
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Activity log */}
-          <div className="portal-panel">
-            <h4 className="mb-4 font-bold text-slate-950">Activité récente</h4>
-            <ul className="divide-y divide-slate-100 text-sm text-slate-700">
-              {activity.map((a) => (
-                <li key={a.id} className="flex items-start justify-between py-3 first:pt-0 last:pb-0">
-                  <div>
-                    <div className="font-medium">{a.text}</div>
-                    <div className="text-xs text-gray-500">{a.at}</div>
-                  </div>
-                  <div className="text-xs text-gray-400">—</div>
-                </li>
               ))}
-            </ul>
-          </div>
-        </section>
-      </div>
-
-      {/* DELETE modal */}
-      {showDelete && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-title"
-          className="portal-modal-backdrop"
-        >
-          <div className="portal-modal">
-            <h2 id="delete-title" className="text-xl font-bold mb-2">
-              Supprimer mon compte
-            </h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Cette action est irréversible. Pour confirmer, tapez{" "}
-              <span className="font-mono">SUPPRIMER</span> et cliquez sur «
-              Supprimer ».
-            </p>
-
-            <input
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="Tapez SUPPRIMER"
-              className="portal-input mb-4"
-            />
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDelete(false)}
-                className="portal-secondary-button"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={confirmText !== "SUPPRIMER" || saving}
-                className="portal-danger-button bg-rose-600 text-white hover:bg-rose-700"
-              >
-                {saving ? "Suppression..." : "Supprimer"}
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+          </section>
+
+          <section className="rounded-2xl bg-slate-950 p-5 text-white shadow-lg">
+            <Check className="h-6 w-6 text-emerald-300" />
+            <h2 className="mt-4 font-bold">Profil professionnel</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Un profil complet améliore les recommandations de clubs, de projets et d’activités.</p>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

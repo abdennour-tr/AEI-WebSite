@@ -33,6 +33,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import clubs from "@/data/Clubs";
 import { clubApplicationsApi } from "@/services/portalApi";
 import { clubAdminApi } from "@/services/clubAdminApi";
+import ShareButton from "@/components/ShareButton";
 
 const iconMap = {
   code: Code2,
@@ -250,12 +251,20 @@ export default function ClubDetailsPage() {
         <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${theme.accent}`} />
         <div className="absolute -right-24 -top-40 h-96 w-96 rounded-full bg-sky-500/10 blur-3xl" />
         <div className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6 sm:pb-14 lg:px-8">
-          <Link
-            to="/clubs"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 transition hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" /> Retour à tous les clubs
-          </Link>
+          <div className="flex items-center justify-between gap-4">
+            <Link
+              to="/clubs"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 transition hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" /> Retour à tous les clubs
+            </Link>
+            <ShareButton
+              title={club.name}
+              text={club.tagline}
+              path={`/clubs/${club.id}`}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/15"
+            />
+          </div>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_21rem] lg:items-end">
             <div>

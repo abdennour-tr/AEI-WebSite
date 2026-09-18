@@ -6,9 +6,11 @@ import fallbackProducts from "../data/Produits";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { marketplaceApi } from "@/services/portalApi";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
+import EmptyState from "@/components/EmptyState";
 
 export default function MarketPlacePage() {
-  const { data: produits, setData } = usePortalCollection(
+  const { data: produits, loading, error, setData } = usePortalCollection(
     marketplaceApi.list,
     fallbackProducts
   );
@@ -145,7 +147,13 @@ export default function MarketPlacePage() {
       </div>
 
       {/* PRODUITS */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {loading && <LoadingSkeleton cards={6} />}
+
+      {error && !loading && (
+        <EmptyState title="Marketplace indisponible" description="Les produits ne peuvent pas être chargés pour le moment. Actualisez la page dans quelques instants." />
+      )}
+
+      {!loading && !error && paginated.length > 0 && <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {paginated.map((p, index) => (
           <Motion.div
             key={p.id}
@@ -202,7 +210,11 @@ export default function MarketPlacePage() {
             </div>
           </Motion.div>
         ))}
-      </div>
+      </div>}
+
+      {!loading && !error && paginated.length === 0 && (
+        <EmptyState icon={ShoppingCart} title="Aucun produit ne correspond" description="Modifiez vos filtres ou publiez le premier produit de cette catégorie." />
+      )}
 
       {/* PAGINATION */}
       {totalPages > 1 && (

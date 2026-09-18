@@ -6,9 +6,11 @@ import fallbackAnnonces from "@/data/Colocation";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { housingApi } from "@/services/portalApi";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
+import EmptyState from "@/components/EmptyState";
 
 export default function ColocationPage() {
-  const { data: annoncesData, setData } = usePortalCollection(
+  const { data: annoncesData, loading, error, setData } = usePortalCollection(
     housingApi.list,
     fallbackAnnonces
   );
@@ -135,7 +137,13 @@ export default function ColocationPage() {
       </div>
 
       {/* GRID ANNONCES */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {loading && <LoadingSkeleton cards={6} />}
+
+      {error && !loading && (
+        <EmptyState title="Les colocations sont indisponibles" description="Les annonces ne peuvent pas être chargées pour le moment. Réessayez dans quelques instants." />
+      )}
+
+      {!loading && !error && annonces.length > 0 && <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {annonces.map((annonce, index) => (
           <Motion.div
             key={annonce.id}
@@ -205,7 +213,11 @@ export default function ColocationPage() {
             </div>
           </Motion.div>
         ))}
-      </div>
+      </div>}
+
+      {!loading && !error && annonces.length === 0 && (
+        <EmptyState icon={Building2} title="Aucune colocation ne correspond" description="Changez la ville ou le tri, ou publiez une annonce pour aider la communauté." />
+      )}
 
       {/* PAGINATION */}
       {totalPages > 1 && (

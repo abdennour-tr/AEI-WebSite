@@ -594,6 +594,28 @@ export const notificationsApi = {
     ),
   markRead: (id) =>
     updateRecord("notifications", id, { read_at: new Date().toISOString() }),
+  subscribe: async (onChange) => {
+    const {
+      data: { user },
+      error,
+    } = await client().auth.getUser();
+    if (error) throw error;
+    if (!user) return () => undefined;
+    const channel = client()
+      .channel(`notifications-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        onChange
+      );
+    channel.subscribe();
+    return () => client().removeChannel(channel);
+  },
 };
 
 const normalizeClubApplications = (value) =>

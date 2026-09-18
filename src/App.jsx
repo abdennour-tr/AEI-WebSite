@@ -27,6 +27,9 @@ import ProjectDetailsPage from "./pages/project-details";
 import OnboardingPage from "./pages/onboarding";
 import ClubAdminLoginPage from "./pages/club-admin-login";
 import ClubAdminDashboardPage from "./pages/club-admin-dashboard";
+import NotFoundPage from "./pages/not-found";
+import ServiceUnavailablePage from "./pages/service-unavailable";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
   return (
@@ -51,7 +54,9 @@ function App() {
             element={
               <ProtectedRoute>
                 <OnboardingGate>
-                  <Layout />
+                  <ErrorBoundary>
+                    <Layout />
+                  </ErrorBoundary>
                 </OnboardingGate>
               </ProtectedRoute>
             }
@@ -74,6 +79,8 @@ function App() {
             <Route path="/colocation" element={<ColocationPage />} />
             <Route path="/marketplace" element={<MarketPlacePage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/indisponible" element={<ServiceUnavailablePage embedded />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </AuthProvider>

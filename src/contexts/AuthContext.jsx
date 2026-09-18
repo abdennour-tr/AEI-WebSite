@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
     const loadProfile = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, full_name, phone, bio, role, hide_email")
+        .select("*")
         .eq("id", session.user.id)
         .maybeSingle();
 
@@ -135,7 +135,7 @@ export function AuthProvider({ children }) {
         if (!supabase || !session?.user?.id) return null;
         const { data } = await supabase
           .from("profiles")
-          .select("id, full_name, phone, bio, role, hide_email")
+          .select("*")
           .eq("id", session.user.id)
           .maybeSingle();
         setProfile(data ?? null);
