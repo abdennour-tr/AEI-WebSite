@@ -11,6 +11,7 @@ import FavoritePage from "./pages/favorite";
 import ChatbotAIPage from "./pages/chatbot";
 import MyAnnoncePage from "./pages/annonce";
 import EventsPage from "./pages/events";
+import EventConfirmationPage from "./pages/event-confirmation";
 import ForumPage from "./pages/forum";
 import StagePage from "./pages/stage";
 import ProjetsPage from "./pages/my-projets";
@@ -65,6 +66,7 @@ function App() {
             <Route path="/chatbot" element={<ChatbotAIPage />} />
             <Route path="/mes-annonces" element={<MyAnnoncePage />} />
             <Route path="/evenements" element={<EventsPage />} />
+            <Route path="/evenements/confirmation" element={<EventConfirmationPage />} />
             <Route path="/forum-communaute" element={<ForumPage />} />
             <Route path="/stages-opportunites" element={<StagePage />} />
             <Route path="/mes-projets" element={<ProjetsPage />} />
