@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { studentProjectsApi } from "@/services/projectsApi";
+import clubs from "@/data/Clubs";
 
 function client() {
   if (!supabase) {
@@ -62,7 +63,7 @@ async function setFavorite(table, foreignKey, recordId, favorite) {
   if (!user) throw new Error("Vous devez être connecté pour enregistrer un favori.");
 
   if (favorite) {
-    return unwrap(
+    const saved = await unwrap(
       client()
         .from(table)
         .upsert(
@@ -72,6 +73,8 @@ async function setFavorite(table, foreignKey, recordId, favorite) {
         .select()
         .single()
     );
+    window.dispatchEvent(new CustomEvent("aei:favorites-changed"));
+    return saved;
   }
 
   await unwrap(
@@ -81,6 +84,7 @@ async function setFavorite(table, foreignKey, recordId, favorite) {
       .eq(foreignKey, recordId)
       .eq("user_id", user.id)
   );
+  window.dispatchEvent(new CustomEvent("aei:favorites-changed"));
   return null;
 }
 
@@ -124,6 +128,18 @@ const mapHousing = (row) => ({
   posted: daysAgo(row.created_at),
 });
 
+const mapProduct = (row) => ({
+  ...row,
+  titre: row.title,
+  prix: row.price,
+  img: row.image_urls?.[0] || "",
+  image: row.image_urls?.[0] || "",
+  categorie: row.category,
+  etat: row.item_condition,
+  ville: row.city,
+  date: formatDate(row.created_at),
+});
+
 export const coursesApi = {
   list: async () => {
     const [rows, favoriteIds] = await Promise.all([
@@ -158,14 +174,39 @@ export const coursesApi = {
 };
 
 export const housingApi = {
-  list: async () =>
+  list: async () => {
+    const [rows, favoriteIds] = await Promise.all([
+      unwrap(
+        client()
+          .from("housing_listings")
+          .select("*")
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+      ),
+      listFavoriteIds("housing_favorites", "housing_id").catch(() => []),
+    ]);
+    const favorites = new Set(favoriteIds);
+    return rows.map((row) => ({
+      ...mapHousing(row),
+      isFavorite: favorites.has(row.id),
+    }));
+  },
+  listFavorites: async () =>
     unwrap(
       client()
-        .from("housing_listings")
-        .select("*")
-        .eq("status", "active")
+        .from("housing_favorites")
+        .select("created_at, housing:housing_listings(*)")
         .order("created_at", { ascending: false })
-    ).then((rows) => rows.map(mapHousing)),
+    ).then((rows) =>
+      rows
+        .filter((row) => row.housing)
+        .map((row) => ({
+          ...mapHousing(row.housing),
+          favoriteCreatedAt: row.created_at,
+        }))
+    ),
+  setFavorite: (housingId, favorite) =>
+    setFavorite("housing_favorites", "housing_id", housingId, favorite),
   listMine: async () =>
     (await listOwned("housing_listings", "owner_id")).map(mapHousing),
   create: async (payload) => mapHousing(await createRecord("housing_listings", payload)),
@@ -175,24 +216,43 @@ export const housingApi = {
 };
 
 export const marketplaceApi = {
-  list: async () =>
+  list: async () => {
+    const [rows, favoriteIds] = await Promise.all([
+      unwrap(
+        client()
+          .from("marketplace_products")
+          .select("*")
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+      ),
+      listFavoriteIds("marketplace_product_favorites", "product_id").catch(() => []),
+    ]);
+    const favorites = new Set(favoriteIds);
+    return rows.map((row) => ({
+      ...mapProduct(row),
+      isFavorite: favorites.has(row.id),
+    }));
+  },
+  listFavorites: async () =>
     unwrap(
       client()
-        .from("marketplace_products")
-        .select("*")
-        .eq("status", "active")
+        .from("marketplace_product_favorites")
+        .select("created_at, product:marketplace_products(*)")
         .order("created_at", { ascending: false })
     ).then((rows) =>
-      rows.map((row) => ({
-        ...row,
-        titre: row.title,
-        prix: row.price,
-        img: row.image_urls?.[0] || "",
-        categorie: row.category,
-        etat: row.item_condition,
-        ville: row.city,
-        date: formatDate(row.created_at),
-      }))
+      rows
+        .filter((row) => row.product)
+        .map((row) => ({
+          ...mapProduct(row.product),
+          favoriteCreatedAt: row.created_at,
+        }))
+    ),
+  setFavorite: (productId, favorite) =>
+    setFavorite(
+      "marketplace_product_favorites",
+      "product_id",
+      productId,
+      favorite
     ),
   listMine: () => listOwned("marketplace_products", "seller_id"),
   create: (payload) => createRecord("marketplace_products", payload),
@@ -392,26 +452,49 @@ export const advertisementsApi = {
     ),
 };
 
+export const clubFavoritesApi = {
+  listIds: () => listFavoriteIds("club_favorites", "club_id"),
+  listFavorites: async () => {
+    const rows = await unwrap(
+      client()
+        .from("club_favorites")
+        .select("club_id,created_at")
+        .order("created_at", { ascending: false })
+    );
+    const clubMap = new Map(clubs.map((club) => [club.id, club]));
+    return rows
+      .filter((row) => clubMap.has(row.club_id))
+      .map((row) => ({
+        ...clubMap.get(row.club_id),
+        favoriteCreatedAt: row.created_at,
+      }));
+  },
+  setFavorite: (clubId, favorite) =>
+    setFavorite("club_favorites", "club_id", clubId, favorite),
+};
+
 export const favoritesApi = {
   list: async () => {
-    const [courses, opportunities, advertisements, projects] = await Promise.all([
+    const [courses, clubsList, projects, advertisements, products, housing] =
+      await Promise.all([
       coursesApi.listFavorites(),
-      opportunitiesApi.listFavorites(),
-      advertisementsApi.listFavorites(),
+      clubFavoritesApi.listFavorites().catch(() => []),
       studentProjectsApi.listFavorites().catch(() => []),
+      advertisementsApi.listFavorites(),
+      marketplaceApi.listFavorites().catch(() => []),
+      housingApi.listFavorites().catch(() => []),
     ]);
 
     return [
       ...courses.map((item) => ({ ...item, favoriteType: "course" })),
-      ...opportunities.map((item) => ({
-        ...item,
-        favoriteType: "opportunity",
-      })),
+      ...clubsList.map((item) => ({ ...item, favoriteType: "club" })),
+      ...projects.map((item) => ({ ...item, favoriteType: "project" })),
       ...advertisements.map((item) => ({
         ...item,
         favoriteType: "advertisement",
       })),
-      ...projects.map((item) => ({ ...item, favoriteType: "project" })),
+      ...products.map((item) => ({ ...item, favoriteType: "product" })),
+      ...housing.map((item) => ({ ...item, favoriteType: "housing" })),
     ].sort(
       (first, second) =>
         new Date(second.favoriteCreatedAt || 0) -
@@ -422,13 +505,62 @@ export const favoritesApi = {
     if (item.favoriteType === "course") {
       return coursesApi.setFavorite(item.id, false);
     }
-    if (item.favoriteType === "opportunity") {
-      return opportunitiesApi.setFavorite(item.id, false);
+    if (item.favoriteType === "club") {
+      return clubFavoritesApi.setFavorite(item.id, false);
     }
     if (item.favoriteType === "project") {
       return studentProjectsApi.setFavorite(item.id, false);
     }
+    if (item.favoriteType === "product") {
+      return marketplaceApi.setFavorite(item.id, false);
+    }
+    if (item.favoriteType === "housing") {
+      return housingApi.setFavorite(item.id, false);
+    }
     return advertisementsApi.setFavorite(item.id, false);
+  },
+  listUpdates: () =>
+    unwrap(
+      client()
+        .from("notifications")
+        .select("*")
+        .like("link", "/favori%")
+        .order("created_at", { ascending: false })
+        .limit(8)
+    ),
+  markUpdateRead: (id) =>
+    updateRecord("notifications", id, { read_at: new Date().toISOString() }),
+  subscribe: async (onChange) => {
+    const {
+      data: { user },
+      error,
+    } = await client().auth.getUser();
+    if (error) throw error;
+    if (!user) return () => undefined;
+
+    const channel = client().channel(`universal-favorites-${user.id}`);
+    [
+      "course_favorites",
+      "project_favorites",
+      "advertisement_favorites",
+      "club_favorites",
+      "marketplace_product_favorites",
+      "housing_favorites",
+      "notifications",
+    ].forEach((table) => {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table,
+          filter: `user_id=eq.${user.id}`,
+        },
+        onChange
+      );
+    });
+    channel.subscribe();
+    return () => client().removeChannel(channel);
   },
 };
 

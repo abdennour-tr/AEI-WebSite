@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Building2, ChevronLeft, ChevronRight, Clock3, MapPin, Plus } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, Plus } from "lucide-react";
 import fallbackAnnonces from "@/data/Colocation";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { housingApi } from "@/services/portalApi";
 
 export default function ColocationPage() {
-  const { data: annoncesData } = usePortalCollection(
+  const { data: annoncesData, setData } = usePortalCollection(
     housingApi.list,
     fallbackAnnonces
   );
@@ -18,6 +18,7 @@ export default function ColocationPage() {
   const [ville, setVille] = useState("");
   const [prix, setPrix] = useState("");
   const [date, setDate] = useState("");
+  const [favoriteError, setFavoriteError] = useState("");
 
   // PAGINATION
   const [page, setPage] = useState(1);
@@ -39,6 +40,26 @@ export default function ColocationPage() {
   const totalPages = Math.ceil(annoncesFiltres.length / perPage);
   const annonces = annoncesFiltres.slice((page - 1) * perPage, page * perPage);
 
+  const toggleFavorite = async (listing) => {
+    const previous = Boolean(listing.isFavorite);
+    setFavoriteError("");
+    setData((items) =>
+      items.map((item) =>
+        item.id === listing.id ? { ...item, isFavorite: !previous } : item
+      )
+    );
+    try {
+      await housingApi.setFavorite(listing.id, !previous);
+    } catch (error) {
+      setData((items) =>
+        items.map((item) =>
+          item.id === listing.id ? { ...item, isFavorite: previous } : item
+        )
+      );
+      setFavoriteError(error.message || "Le favori n’a pas pu être enregistré.");
+    }
+  };
+
   return (
     <div className="portal-page">
       <PageHeader
@@ -51,6 +72,12 @@ export default function ColocationPage() {
           <Plus className="h-4 w-4" /> Publier une annonce
         </button>
       </PageHeader>
+
+      {favoriteError && (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          {favoriteError}
+        </p>
+      )}
 
       {/* FILTRES */}
       <div className="portal-panel flex flex-col gap-5 md:flex-row md:items-end">
@@ -117,12 +144,24 @@ export default function ColocationPage() {
             transition={{ delay: index * 0.05 }}
             className="portal-card"
           >
-            <div className="h-48 w-full overflow-hidden">
+            <div className="relative h-48 w-full overflow-hidden">
               <img
                 src={annonce.cover}
                 className="w-full h-full object-cover"
                 alt="cover"
               />
+              <button
+                type="button"
+                onClick={() => toggleFavorite(annonce)}
+                className={`absolute right-4 top-4 rounded-xl p-2.5 shadow-lg backdrop-blur transition ${
+                  annonce.isFavorite
+                    ? "bg-rose-500 text-white"
+                    : "bg-white/90 text-slate-600 hover:text-rose-600"
+                }`}
+                aria-label={annonce.isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+              >
+                <Heart className={`h-5 w-5 ${annonce.isFavorite ? "fill-current" : ""}`} />
+              </button>
             </div>
 
             <div className="p-6">

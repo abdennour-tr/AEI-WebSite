@@ -6,6 +6,7 @@ import {
   Code2,
   ExternalLink,
   HandHeart,
+  Heart,
   HeartHandshake,
   Lightbulb,
   Rocket,
@@ -18,7 +19,8 @@ import { motion as Motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
 import clubs from "@/data/Clubs";
-import { clubApplicationsApi } from "@/services/portalApi";
+import { usePortalCollection } from "@/hooks/usePortalCollection";
+import { clubApplicationsApi, clubFavoritesApi } from "@/services/portalApi";
 
 const iconMap = {
   code: Code2,
@@ -55,6 +57,11 @@ export default function ClubsPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
   const [applications, setApplications] = useState([]);
+  const [favoriteError, setFavoriteError] = useState("");
+  const { data: favoriteIds, setData: setFavoriteIds } = usePortalCollection(
+    clubFavoritesApi.listIds,
+    []
+  );
 
   useEffect(() => {
     let active = true;
@@ -83,6 +90,26 @@ export default function ClubsPage() {
     });
   }, [category, search]);
 
+  const toggleFavorite = async (club) => {
+    const wasFavorite = favoriteIds.includes(club.id);
+    setFavoriteError("");
+    setFavoriteIds((current) =>
+      wasFavorite
+        ? current.filter((clubId) => clubId !== club.id)
+        : [...current, club.id]
+    );
+    try {
+      await clubFavoritesApi.setFavorite(club.id, !wasFavorite);
+    } catch (error) {
+      setFavoriteIds((current) =>
+        wasFavorite
+          ? [...new Set([...current, club.id])]
+          : current.filter((clubId) => clubId !== club.id)
+      );
+      setFavoriteError(error.message || "Le favori n’a pas pu être enregistré.");
+    }
+  };
+
   return (
     <div className="portal-page">
       <PageHeader
@@ -98,6 +125,12 @@ export default function ClubsPage() {
           Comment rejoindre un club <ArrowRight className="h-4 w-4" />
         </a>
       </PageHeader>
+
+      {favoriteError && (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          {favoriteError}
+        </p>
+      )}
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="portal-panel md:col-span-2">
@@ -160,9 +193,31 @@ export default function ClubsPage() {
                 <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${accentMap[club.accent]}`}>
                   <Icon className="h-6 w-6" />
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                  {club.category}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                    {club.category}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleFavorite(club)}
+                    className={`rounded-xl p-2.5 transition ${
+                      favoriteIds.includes(club.id)
+                        ? "bg-rose-500 text-white shadow-md shadow-rose-100"
+                        : "bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+                    }`}
+                    aria-label={
+                      favoriteIds.includes(club.id)
+                        ? `Retirer ${club.name} des favoris`
+                        : `Ajouter ${club.name} aux favoris`
+                    }
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${
+                        favoriteIds.includes(club.id) ? "fill-current" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
               <h2 className="mt-5 text-xl font-bold text-slate-950">{club.name}</h2>

@@ -143,13 +143,15 @@ export const studentProjectsApi = {
     );
   },
 
-  setFavorite(projectId, favorite) {
-    return unwrap(
+  async setFavorite(projectId, favorite) {
+    const result = await unwrap(
       client().rpc("toggle_project_favorite", {
         target_project_id: projectId,
         should_favorite: favorite,
       })
     );
+    window.dispatchEvent(new CustomEvent("aei:favorites-changed"));
+    return result;
   },
 
   async listFavorites() {

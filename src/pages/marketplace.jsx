@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, ShoppingCart, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Search, ShoppingCart, ChevronLeft, ChevronRight, Heart, Plus } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import fallbackProducts from "../data/Produits";
@@ -8,7 +8,7 @@ import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { marketplaceApi } from "@/services/portalApi";
 
 export default function MarketPlacePage() {
-  const { data: produits } = usePortalCollection(
+  const { data: produits, setData } = usePortalCollection(
     marketplaceApi.list,
     fallbackProducts
   );
@@ -25,6 +25,7 @@ export default function MarketPlacePage() {
   const [filterCat, setFilterCat] = useState("");
   const [filterVille, setFilterVille] = useState("");
   const [sort, setSort] = useState("");
+  const [favoriteError, setFavoriteError] = useState("");
 
   const [page, setPage] = useState(1);
   const perPage = 6;
@@ -46,6 +47,26 @@ export default function MarketPlacePage() {
     page * perPage
   );
 
+  const toggleFavorite = async (product) => {
+    const previous = Boolean(product.isFavorite);
+    setFavoriteError("");
+    setData((items) =>
+      items.map((item) =>
+        item.id === product.id ? { ...item, isFavorite: !previous } : item
+      )
+    );
+    try {
+      await marketplaceApi.setFavorite(product.id, !previous);
+    } catch (error) {
+      setData((items) =>
+        items.map((item) =>
+          item.id === product.id ? { ...item, isFavorite: previous } : item
+        )
+      );
+      setFavoriteError(error.message || "Le favori n’a pas pu être enregistré.");
+    }
+  };
+
   return (
     <div className="portal-page">
       <PageHeader
@@ -58,6 +79,12 @@ export default function MarketPlacePage() {
           <Plus className="h-4 w-4" /> Publier un produit
         </button>
       </PageHeader>
+
+      {favoriteError && (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          {favoriteError}
+        </p>
+      )}
 
       {/* FILTRES */}
       <div className="portal-panel">
@@ -127,12 +154,24 @@ export default function MarketPlacePage() {
             transition={{ delay: index * 0.05 }}
             className="portal-card group"
           >
-            <div className="h-52 overflow-hidden">
+            <div className="relative h-52 overflow-hidden">
               <img
                 src={p.img}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 alt=""
               />
+              <button
+                type="button"
+                onClick={() => toggleFavorite(p)}
+                className={`absolute right-4 top-4 rounded-xl p-2.5 shadow-lg backdrop-blur transition ${
+                  p.isFavorite
+                    ? "bg-rose-500 text-white"
+                    : "bg-white/90 text-slate-600 hover:text-rose-600"
+                }`}
+                aria-label={p.isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+              >
+                <Heart className={`h-5 w-5 ${p.isFavorite ? "fill-current" : ""}`} />
+              </button>
             </div>
 
             <div className="p-5 sm:p-6">

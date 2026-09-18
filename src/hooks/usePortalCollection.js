@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 export function usePortalCollection(loader, fallbackData = []) {
@@ -8,6 +8,7 @@ export function usePortalCollection(loader, fallbackData = []) {
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined;
@@ -40,6 +41,6 @@ export function usePortalCollection(loader, fallbackData = []) {
     error,
     loading,
     setData,
-    reload: () => setReloadKey((key) => key + 1),
+    reload,
   };
 }
