@@ -119,7 +119,7 @@ export default function MainNavigation({ children }) {
         </Link>
 
         {/* Top links (mobile / tablette) */}
-        <ul className="mb-6 space-y-1 border-b border-slate-200 pb-6 lg:hidden">
+        <ul className="mb-6 space-y-1 border-b border-slate-200 pb-6 xl:hidden">
           {topLinks.map((link, index) => (
             <li
               key={index}
@@ -185,12 +185,12 @@ export default function MainNavigation({ children }) {
           </div>
 
           {/* Navigation desktop */}
-          <nav className="hidden shrink-0 items-center gap-1 text-sm font-semibold 2xl:flex">
+          <nav className="hidden shrink-0 items-center gap-0 text-sm font-semibold xl:flex 2xl:gap-1">
             {topLinks.map((link, index) => (
               <Link
                 key={index}
                 to={link.to}
-                className={`rounded-lg px-3 py-2 transition-colors ${
+                className={`rounded-lg px-2 py-2 transition-colors 2xl:px-3 ${
                   location.pathname === link.to
                     ? "bg-sky-50 text-sky-700"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"

@@ -50,12 +50,12 @@ export default function GlobalSearch() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 sm:w-64 lg:w-72"
+        className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-500 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 sm:w-64 lg:w-72 xl:h-10 xl:w-10 xl:justify-center xl:px-0 2xl:w-72 2xl:justify-start 2xl:px-3"
         aria-label="Ouvrir la recherche globale"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="hidden truncate sm:block">Rechercher dans le portail…</span>
-        <span className="ml-auto hidden items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-400 md:inline-flex">
+        <span className="hidden truncate sm:block xl:hidden 2xl:block">Rechercher dans le portail…</span>
+        <span className="ml-auto hidden items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-400 md:inline-flex xl:hidden 2xl:inline-flex">
           <Command className="h-3 w-3" /> K
         </span>
       </button>
