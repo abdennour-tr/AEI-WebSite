@@ -20,6 +20,12 @@ const resourceLinks = [
   { label: "Espace responsables", to: "/club-admin/connexion" },
 ];
 
+const legalLinks = [
+  { label: "Confidentialité", to: "/confidentialite" },
+  { label: "Conditions d’utilisation", to: "/conditions-utilisation" },
+  { label: "Règles de la communauté", to: "/regles-communaute" },
+];
+
 export default function Footer() {
   return (
     <footer className="bg-slate-950 py-14 text-white">
@@ -94,7 +100,7 @@ export default function Footer() {
 
       {/* Divider */}
       <div className="mx-auto mt-12 flex max-w-7xl flex-col gap-2 border-t border-white/10 px-6 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-        <span>&copy; {new Date().getFullYear()} AEI. Tous droits réservés.</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>&copy; {new Date().getFullYear()} AEI. Tous droits réservés.</span>{legalLinks.map((link) => <Link key={link.to} to={link.to} className="transition hover:text-sky-300">{link.label}</Link>)}</div>
         <span>
           Développé par{" "}
           <strong className="font-semibold text-sky-300">TRARI Abdenour</strong>

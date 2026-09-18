@@ -196,6 +196,12 @@ export default function ProjetsPage() {
 
             <h2 className="mb-2 text-lg font-bold text-slate-950">{p.title}</h2>
 
+            {p.moderation_status && p.moderation_status !== "approved" && (
+              <div className={`mb-3 rounded-xl px-3 py-2 text-xs font-bold ${p.moderation_status === "rejected" ? "bg-rose-50 text-rose-800" : "bg-amber-50 text-amber-800"}`}>
+                {p.moderation_status === "rejected" ? `À corriger${p.moderation_reason ? ` : ${p.moderation_reason}` : ""}` : "En attente de validation avant publication"}
+              </div>
+            )}
+
             <p className="mb-4 text-sm leading-6 text-slate-600">{p.desc}</p>
 
             <span className="portal-badge">

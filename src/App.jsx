@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import OnboardingGate from "./components/OnboardingGate";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ClubAdminRoute from "./components/ClubAdminRoute";
+import AdminRoute from "./components/AdminRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 
 import HomePage from "./pages/home";
@@ -27,6 +28,8 @@ import ProjectDetailsPage from "./pages/project-details";
 import OnboardingPage from "./pages/onboarding";
 import ClubAdminLoginPage from "./pages/club-admin-login";
 import ClubAdminDashboardPage from "./pages/club-admin-dashboard";
+import AdminDashboardPage from "./pages/admin-dashboard";
+import LegalPage from "./pages/legal";
 import NotFoundPage from "./pages/not-found";
 import ServiceUnavailablePage from "./pages/service-unavailable";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -38,8 +41,14 @@ function App() {
         <Routes>
           <Route path="/connexion" element={<ConnexionPage />} />
           <Route path="/club-admin/connexion" element={<ClubAdminLoginPage />} />
+          <Route path="/confidentialite" element={<LegalPage type="privacy" />} />
+          <Route path="/conditions-utilisation" element={<LegalPage type="terms" />} />
+          <Route path="/regles-communaute" element={<LegalPage type="community" />} />
           <Route element={<ClubAdminRoute />}>
             <Route path="/club-admin" element={<ClubAdminDashboardPage />} />
+          </Route>
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<AdminDashboardPage />} />
           </Route>
           <Route
             path="/bienvenue"

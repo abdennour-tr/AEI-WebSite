@@ -5,6 +5,7 @@ import { AuthContext } from "@/contexts/auth-context";
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function AuthProvider({ children }) {
       }
 
       setSession(data.session);
+      setProfileLoading(Boolean(data.session?.user?.id));
       setLoading(false);
     };
 
@@ -33,6 +35,7 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (!nextSession) setProfile(null);
+      setProfileLoading(Boolean(nextSession?.user?.id));
       setLoading(false);
     });
 
@@ -44,10 +47,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!supabase || !session?.user?.id) {
+      setProfileLoading(false);
       return undefined;
     }
 
     let active = true;
+    setProfileLoading(true);
 
     const loadProfile = async () => {
       const { data } = await supabase
@@ -56,7 +61,10 @@ export function AuthProvider({ children }) {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (active) setProfile(data ?? null);
+      if (active) {
+        setProfile(data ?? null);
+        setProfileLoading(false);
+      }
     };
 
     loadProfile();
@@ -73,6 +81,7 @@ export function AuthProvider({ children }) {
       session,
       user: session?.user ?? null,
       profile,
+      profileLoading,
       async signIn(email, password) {
         if (!supabase) {
           return {
@@ -142,7 +151,7 @@ export function AuthProvider({ children }) {
         return data ?? null;
       },
     }),
-    [loading, profile, session]
+    [loading, profile, profileLoading, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

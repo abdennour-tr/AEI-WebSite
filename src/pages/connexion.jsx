@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { AlertCircle, Eye, EyeOff, LoaderCircle, Lock, ShieldCheck, User } from "lucide-react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { AlertCircle, ArrowRight, Building2, Eye, EyeOff, LoaderCircle, Lock, ShieldCheck, User } from "lucide-react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import logo from "../assets/AEI.png";
 
@@ -119,10 +119,17 @@ export default function Connexion() {
             )}
           </button>
         </form>
+        <div className="mt-6 border-t border-slate-200 pt-5 text-center">
+          <p className="text-sm text-slate-500">Vous êtes responsable d’un club ?</p>
+          <Link to="/club-admin/connexion" className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-sky-700 transition hover:text-sky-900">
+            <Building2 className="h-4 w-4" /> Accéder à l’espace responsables <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
         <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
           <ShieldCheck className="h-4 w-4 text-emerald-600" />
           Connexion sécurisée à votre espace personnel
         </div>
+        <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-slate-400"><Link to="/confidentialite" className="hover:text-sky-700">Confidentialité</Link><Link to="/conditions-utilisation" className="hover:text-sky-700">Conditions d’utilisation</Link><Link to="/regles-communaute" className="hover:text-sky-700">Règles de la communauté</Link></div>
       </div>
     </div>
   );

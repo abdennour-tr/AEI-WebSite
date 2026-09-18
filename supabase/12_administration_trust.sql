@@ -1,0 +1,302 @@
+-- AEI Portal — Administration, modération et confiance.
+-- À exécuter après les scripts 01 à 11 dans Supabase > SQL Editor.
+
+-- Les contenus déjà présents restent approuvés. Les nouvelles publications seront en attente.
+alter table public.club_profiles add column if not exists moderation_status text;
+alter table public.club_profiles add column if not exists moderation_reason text;
+alter table public.club_profiles add column if not exists moderated_by uuid references auth.users(id) on delete set null;
+alter table public.club_profiles add column if not exists moderated_at timestamptz;
+
+alter table public.student_projects add column if not exists moderation_status text;
+alter table public.student_projects add column if not exists moderation_reason text;
+alter table public.student_projects add column if not exists moderated_by uuid references auth.users(id) on delete set null;
+alter table public.student_projects add column if not exists moderated_at timestamptz;
+
+alter table public.housing_listings add column if not exists moderation_status text;
+alter table public.housing_listings add column if not exists moderation_reason text;
+alter table public.housing_listings add column if not exists moderated_by uuid references auth.users(id) on delete set null;
+alter table public.housing_listings add column if not exists moderated_at timestamptz;
+
+alter table public.marketplace_products add column if not exists moderation_status text;
+alter table public.marketplace_products add column if not exists moderation_reason text;
+alter table public.marketplace_products add column if not exists moderated_by uuid references auth.users(id) on delete set null;
+alter table public.marketplace_products add column if not exists moderated_at timestamptz;
+
+alter table public.advertisements add column if not exists moderation_status text;
+alter table public.advertisements add column if not exists moderation_reason text;
+alter table public.advertisements add column if not exists moderated_by uuid references auth.users(id) on delete set null;
+alter table public.advertisements add column if not exists moderated_at timestamptz;
+
+do $$
+declare target_table text;
+begin
+  foreach target_table in array array['club_profiles','student_projects','housing_listings','marketplace_products','advertisements']
+  loop
+    execute format('update public.%I set moderation_status = ''approved'' where moderation_status is null', target_table);
+    execute format('alter table public.%I alter column moderation_status set default ''pending''', target_table);
+    execute format('alter table public.%I alter column moderation_status set not null', target_table);
+    if not exists (
+      select 1 from pg_constraint
+      where conname = target_table || '_moderation_status_check'
+    ) then
+      execute format(
+        'alter table public.%I add constraint %I check (moderation_status in (''pending'',''approved'',''rejected''))',
+        target_table,
+        target_table || '_moderation_status_check'
+      );
+    end if;
+  end loop;
+end $$;
+
+create or replace function public.reset_moderation_after_member_edit()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if (select auth.uid()) is not null and not private.is_staff() then
+    new.moderation_status := 'pending';
+    new.moderation_reason := null;
+    new.moderated_by := null;
+    new.moderated_at := null;
+  end if;
+  return new;
+end $$;
+
+do $$
+declare target_table text;
+begin
+  foreach target_table in array array['club_profiles','student_projects','housing_listings','marketplace_products','advertisements']
+  loop
+    execute format('drop trigger if exists reset_%I_moderation on public.%I', target_table, target_table);
+    execute format('create trigger reset_%I_moderation before update on public.%I for each row execute procedure public.reset_moderation_after_member_edit()', target_table, target_table);
+  end loop;
+end $$;
+
+create table if not exists public.content_reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null default auth.uid(),
+  content_type text not null check (content_type in ('club','project','housing','product','advertisement','forum','comment')),
+  content_id text not null,
+  reason text not null check (char_length(trim(reason)) between 3 and 120),
+  details text check (details is null or char_length(details) <= 1200),
+  status text not null default 'pending' check (status in ('pending','reviewing','resolved','dismissed')),
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
+  review_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint content_reports_reporter_id_fkey foreign key (reporter_id) references public.public_profiles(user_id) on delete cascade
+);
+
+create table if not exists public.admin_audit_log (
+  id bigint generated by default as identity primary key,
+  actor_id uuid,
+  action text not null,
+  target_type text,
+  target_id text,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint admin_audit_log_actor_id_fkey foreign key (actor_id) references public.public_profiles(user_id) on delete set null
+);
+
+create table if not exists public.account_deletion_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique,
+  reason text check (reason is null or char_length(reason) <= 1200),
+  status text not null default 'requested' check (status in ('requested','processing','completed','rejected')),
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
+  review_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint account_deletion_requests_user_id_fkey foreign key (user_id) references public.profiles(id) on delete cascade
+);
+
+create index if not exists content_reports_status_created_idx on public.content_reports(status, created_at desc);
+create index if not exists admin_audit_created_idx on public.admin_audit_log(created_at desc);
+create index if not exists deletion_requests_status_idx on public.account_deletion_requests(status, created_at desc);
+
+drop trigger if exists set_content_reports_updated_at on public.content_reports;
+create trigger set_content_reports_updated_at before update on public.content_reports for each row execute procedure public.set_updated_at();
+drop trigger if exists set_account_deletion_requests_updated_at on public.account_deletion_requests;
+create trigger set_account_deletion_requests_updated_at before update on public.account_deletion_requests for each row execute procedure public.set_updated_at();
+
+alter table public.content_reports enable row level security;
+alter table public.admin_audit_log enable row level security;
+alter table public.account_deletion_requests enable row level security;
+
+revoke all on table public.content_reports from anon, authenticated;
+revoke all on table public.admin_audit_log from anon, authenticated;
+revoke all on table public.account_deletion_requests from anon, authenticated;
+grant select on table public.content_reports to authenticated;
+grant insert (reporter_id, content_type, content_id, reason, details) on table public.content_reports to authenticated;
+grant select on table public.admin_audit_log to authenticated;
+grant select on table public.account_deletion_requests to authenticated;
+grant insert (user_id, reason) on table public.account_deletion_requests to authenticated;
+
+drop policy if exists reports_select_own_or_staff on public.content_reports;
+create policy reports_select_own_or_staff on public.content_reports for select to authenticated
+using (reporter_id = (select auth.uid()) or private.is_staff());
+drop policy if exists reports_insert_own on public.content_reports;
+create policy reports_insert_own on public.content_reports for insert to authenticated
+with check (reporter_id = (select auth.uid()));
+
+drop policy if exists audit_select_staff on public.admin_audit_log;
+create policy audit_select_staff on public.admin_audit_log for select to authenticated
+using (private.is_staff());
+
+drop policy if exists deletion_requests_select_relevant on public.account_deletion_requests;
+create policy deletion_requests_select_relevant on public.account_deletion_requests for select to authenticated
+using (user_id = (select auth.uid()) or private.is_staff());
+drop policy if exists deletion_requests_insert_own on public.account_deletion_requests;
+create policy deletion_requests_insert_own on public.account_deletion_requests for insert to authenticated
+with check (user_id = (select auth.uid()));
+
+-- Les membres ne peuvent jamais approuver eux-mêmes leur contenu.
+revoke insert, update on table public.student_projects from authenticated;
+grant insert (owner_id,title,description,tech_stack,repository_url,demo_url,cover_url,status,field_of_study,academic_year,project_stage,documentation_url,screenshot_urls,team_members,seeking_collaborators,collaborator_roles)
+on public.student_projects to authenticated;
+grant update (title,description,tech_stack,repository_url,demo_url,cover_url,status,field_of_study,academic_year,project_stage,documentation_url,screenshot_urls,team_members,seeking_collaborators,collaborator_roles,updated_at)
+on public.student_projects to authenticated;
+
+revoke insert, update on table public.housing_listings from authenticated;
+grant insert (owner_id,title,description,city,property_type,monthly_price,available_from,image_urls,status) on public.housing_listings to authenticated;
+grant update (title,description,city,property_type,monthly_price,available_from,image_urls,status,updated_at) on public.housing_listings to authenticated;
+
+revoke insert, update on table public.marketplace_products from authenticated;
+grant insert (seller_id,title,description,category,city,item_condition,price,image_urls,status) on public.marketplace_products to authenticated;
+grant update (title,description,category,city,item_condition,price,image_urls,status,updated_at) on public.marketplace_products to authenticated;
+
+revoke insert, update on table public.advertisements from authenticated;
+grant insert (created_by,title,description,image_url,target_url,starts_at,ends_at,status) on public.advertisements to authenticated;
+grant update (title,description,image_url,target_url,starts_at,ends_at,status,updated_at) on public.advertisements to authenticated;
+
+revoke update on table public.club_profiles from authenticated;
+grant update (name,category,tagline,description,founded_label,recruitment_label,contact_label,contact_url,objectives,status,updated_at)
+on public.club_profiles to authenticated;
+
+-- Seuls les contenus approuvés sont visibles par la communauté.
+drop policy if exists club_profiles_select_authenticated on public.club_profiles;
+create policy club_profiles_select_authenticated on public.club_profiles for select to authenticated
+using ((status = 'active' and moderation_status = 'approved') or private.manages_club(id) or private.is_staff());
+
+drop policy if exists projects_select_authenticated on public.student_projects;
+create policy projects_select_authenticated on public.student_projects for select to authenticated
+using ((status = 'published' and moderation_status = 'approved') or owner_id = (select auth.uid()) or private.is_staff());
+
+drop policy if exists housing_select_authenticated on public.housing_listings;
+create policy housing_select_authenticated on public.housing_listings for select to authenticated
+using ((status = 'active' and moderation_status = 'approved') or owner_id = (select auth.uid()) or private.is_staff());
+
+drop policy if exists products_select_authenticated on public.marketplace_products;
+create policy products_select_authenticated on public.marketplace_products for select to authenticated
+using ((status = 'active' and moderation_status = 'approved') or seller_id = (select auth.uid()) or private.is_staff());
+
+drop policy if exists ads_select_authenticated on public.advertisements;
+create policy ads_select_authenticated on public.advertisements for select to authenticated
+using ((status = 'published' and moderation_status = 'approved') or created_by = (select auth.uid()) or private.is_staff());
+
+create or replace function public.report_content(target_type text, target_id text, report_reason text, report_details text default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare new_id uuid;
+begin
+  if (select auth.uid()) is null then raise exception 'Authentification requise'; end if;
+  if target_type not in ('club','project','housing','product','advertisement','forum','comment') then raise exception 'Type de contenu invalide'; end if;
+  if char_length(trim(report_reason)) < 3 then raise exception 'Motif incomplet'; end if;
+  insert into public.content_reports(reporter_id,content_type,content_id,reason,details)
+  values ((select auth.uid()),target_type,target_id,trim(report_reason),nullif(trim(coalesce(report_details,'')),'')) returning id into new_id;
+  return new_id;
+end $$;
+
+create or replace function public.moderate_content(target_type text, target_id text, decision text, decision_reason text default '')
+returns void language plpgsql security definer set search_path = '' as $$
+declare owner_id uuid;
+begin
+  if not private.is_staff() then raise exception 'Accès refusé'; end if;
+  if decision not in ('approved','rejected') then raise exception 'Décision invalide'; end if;
+  case target_type
+    when 'club' then
+      update public.club_profiles set moderation_status=decision, moderation_reason=nullif(trim(decision_reason),''), moderated_by=(select auth.uid()), moderated_at=now() where id=target_id;
+      insert into public.notifications(user_id,title,body,link)
+      select user_id, case when decision='approved' then 'Club validé' else 'Club à corriger' end,
+        coalesce(nullif(trim(decision_reason),''),'La fiche du club a été examinée.'), '/club-admin'
+      from public.club_managers where club_id=target_id and active=true;
+    when 'project' then
+      update public.student_projects set moderation_status=decision, moderation_reason=nullif(trim(decision_reason),''), moderated_by=(select auth.uid()), moderated_at=now() where id=target_id::uuid returning student_projects.owner_id into owner_id;
+    when 'housing' then
+      update public.housing_listings set moderation_status=decision, moderation_reason=nullif(trim(decision_reason),''), moderated_by=(select auth.uid()), moderated_at=now() where id=target_id::uuid returning housing_listings.owner_id into owner_id;
+    when 'product' then
+      update public.marketplace_products set moderation_status=decision, moderation_reason=nullif(trim(decision_reason),''), moderated_by=(select auth.uid()), moderated_at=now() where id=target_id::uuid returning seller_id into owner_id;
+    when 'advertisement' then
+      update public.advertisements set moderation_status=decision, moderation_reason=nullif(trim(decision_reason),''), moderated_by=(select auth.uid()), moderated_at=now() where id=target_id::uuid returning created_by into owner_id;
+    else raise exception 'Type de contenu invalide';
+  end case;
+  if owner_id is not null then
+    insert into public.notifications(user_id,title,body,link) values (
+      owner_id,
+      case when decision='approved' then 'Publication validée' else 'Publication à corriger' end,
+      coalesce(nullif(trim(decision_reason),''),case when decision='approved' then 'Votre contenu est maintenant visible.' else 'Votre contenu nécessite une modification.' end),
+      case target_type when 'project' then '/mes-projets' when 'housing' then '/mes-annonces' else '/' end
+    );
+  end if;
+  insert into public.admin_audit_log(actor_id,action,target_type,target_id,details)
+  values ((select auth.uid()),'moderation.'||decision,target_type,target_id,jsonb_build_object('reason',decision_reason));
+end $$;
+
+create or replace function public.review_content_report(report_id uuid, next_status text, decision_note text default '')
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.is_staff() then raise exception 'Accès refusé'; end if;
+  if next_status not in ('reviewing','resolved','dismissed') then raise exception 'Statut invalide'; end if;
+  update public.content_reports set status=next_status, reviewed_by=(select auth.uid()), reviewed_at=now(), review_note=nullif(trim(decision_note),'') where id=report_id;
+  insert into public.admin_audit_log(actor_id,action,target_type,target_id,details)
+  select (select auth.uid()),'report.'||next_status,content_type,content_id,jsonb_build_object('report_id',id,'note',decision_note) from public.content_reports where id=report_id;
+end $$;
+
+create or replace function public.set_portal_role(target_user_id uuid, next_role public.app_role)
+returns void language plpgsql security definer set search_path = '' as $$
+declare previous_role public.app_role;
+begin
+  if not private.is_admin() then raise exception 'Accès administrateur requis'; end if;
+  if target_user_id = (select auth.uid()) then raise exception 'Vous ne pouvez pas modifier votre propre rôle'; end if;
+  select role into previous_role from public.profiles where id=target_user_id;
+  if previous_role is null then raise exception 'Utilisateur introuvable'; end if;
+  update public.profiles set role=next_role, updated_at=now() where id=target_user_id;
+  insert into public.admin_audit_log(actor_id,action,target_type,target_id,details)
+  values ((select auth.uid()),'role.changed','user',target_user_id::text,jsonb_build_object('from',previous_role,'to',next_role));
+end $$;
+
+create or replace function public.request_account_deletion(request_reason text default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare request_id uuid;
+begin
+  if (select auth.uid()) is null then raise exception 'Authentification requise'; end if;
+  insert into public.account_deletion_requests(user_id,reason,status)
+  values ((select auth.uid()),nullif(trim(coalesce(request_reason,'')),''),'requested')
+  on conflict (user_id) do update set reason=excluded.reason,status='requested',reviewed_by=null,reviewed_at=null,review_note=null,updated_at=now()
+  returning id into request_id;
+  return request_id;
+end $$;
+
+create or replace function public.review_account_deletion(request_id uuid, next_status text, decision_note text default '')
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.is_staff() then raise exception 'Accès refusé'; end if;
+  if next_status not in ('processing','completed','rejected') then raise exception 'Statut invalide'; end if;
+  update public.account_deletion_requests set status=next_status,reviewed_by=(select auth.uid()),reviewed_at=now(),review_note=nullif(trim(decision_note),'') where id=request_id;
+  insert into public.admin_audit_log(actor_id,action,target_type,target_id,details)
+  values ((select auth.uid()),'account_deletion.'||next_status,'account_deletion',request_id::text,jsonb_build_object('note',decision_note));
+end $$;
+
+revoke execute on function public.report_content(text,text,text,text) from public;
+revoke execute on function public.moderate_content(text,text,text,text) from public;
+revoke execute on function public.review_content_report(uuid,text,text) from public;
+revoke execute on function public.set_portal_role(uuid,public.app_role) from public;
+revoke execute on function public.request_account_deletion(text) from public;
+revoke execute on function public.review_account_deletion(uuid,text,text) from public;
+grant execute on function public.report_content(text,text,text,text) to authenticated;
+grant execute on function public.moderate_content(text,text,text,text) to authenticated;
+grant execute on function public.review_content_report(uuid,text,text) to authenticated;
+grant execute on function public.set_portal_role(uuid,public.app_role) to authenticated;
+grant execute on function public.request_account_deletion(text) to authenticated;
+grant execute on function public.review_account_deletion(uuid,text,text) to authenticated;
+
+notify pgrst, 'reload schema';

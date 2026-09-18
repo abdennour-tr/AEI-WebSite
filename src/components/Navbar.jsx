@@ -10,7 +10,7 @@ import gestion from "../assets/icons/gestion-de-projet.png";
 import publicite from "../assets/icons/la-publicite.png";
 import stage from "../assets/icons/stage.png";
 import evenement from "../assets/icons/un-evenement.png";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, ShieldCheck, X } from "lucide-react";
 import Footer from "../components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import GlobalSearch from "@/components/GlobalSearch";
@@ -63,6 +63,9 @@ export default function MainNavigation({ children }) {
     { name: "Forum / Communauté", image: communautes, to: "/forum-communaute" },
     { name: "Publicités", image: publicite, to: "/publicites" },
     { name: "Chatbot IA", image: chat, to: "/chatbot" },
+    ...(["admin", "moderator"].includes(accountProfile?.role)
+      ? [{ name: "Administration", icon: ShieldCheck, to: "/admin" }]
+      : []),
   ];
 
   const topLinks = [
@@ -159,7 +162,7 @@ export default function MainNavigation({ children }) {
                 className="flex items-center gap-3 px-3 py-2.5"
                 onClick={() => setSidebarOpen(false)}
               >
-                <img src={item.image} alt="" className="h-5 w-5 opacity-80" />
+                {item.icon ? <item.icon className="h-5 w-5 text-sky-700" /> : <img src={item.image} alt="" className="h-5 w-5 opacity-80" />}
                 <span className="text-sm font-semibold">
                   {item.name}
                 </span>

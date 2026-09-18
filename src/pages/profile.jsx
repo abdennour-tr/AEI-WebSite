@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Award,
   Check,
+  Download,
+  FileJson,
   Github,
   Globe2,
   Linkedin,
@@ -11,6 +13,7 @@ import {
   Save,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Upload,
   UserRound,
   X,
@@ -19,6 +22,7 @@ import fallbackAvatar from "@/assets/profile.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { listStudentBadges } from "@/services/experienceApi";
+import { exportAccountData, requestAccountDeletion } from "@/services/accountApi";
 
 const fallbackBadge = {
   badge_code: "aei_member",
@@ -90,6 +94,8 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
+  const [privacyMessage, setPrivacyMessage] = useState("");
+  const [deletionReason, setDeletionReason] = useState("");
 
   useEffect(() => {
     setForm({
@@ -194,6 +200,31 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
+  const exportData = async () => {
+    setPrivacyMessage("");
+    try {
+      await exportAccountData(user);
+      setPrivacyMessage("Votre export a été préparé et téléchargé.");
+    } catch (error) {
+      setPrivacyMessage(error.message || "Impossible de préparer votre export.");
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!window.confirm("Envoyer une demande de suppression de votre compte et de vos données ?")) return;
+    setSaving(true);
+    setPrivacyMessage("");
+    try {
+      await requestAccountDeletion(deletionReason.trim());
+      setDeletionReason("");
+      setPrivacyMessage("Votre demande de suppression a été transmise à l’administration.");
+    } catch (error) {
+      setPrivacyMessage(error.message || "Impossible d’envoyer votre demande.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="portal-page">
       <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
@@ -258,6 +289,14 @@ export default function ProfilePage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2"><input type="password" className="portal-input" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Mot de passe actuel" /><input type="password" className="portal-input" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Nouveau mot de passe" /></div>
             {passwordMessage && <p className={`mt-3 text-sm font-semibold ${passwordMessage.includes("succès") ? "text-emerald-700" : "text-rose-700"}`}>{passwordMessage}</p>}
             <button type="button" onClick={changePassword} disabled={saving} className="portal-secondary-button mt-4">Mettre à jour le mot de passe</button>
+          </section>
+          <section className="portal-panel">
+            <div className="flex items-center gap-3"><span className="rounded-xl bg-cyan-50 p-2.5 text-cyan-700"><FileJson className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Mes données et mon compte</h2><p className="text-sm text-slate-500">Téléchargez vos données ou demandez leur suppression.</p></div></div>
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 p-5"><Download className="h-5 w-5 text-cyan-700" /><h3 className="mt-3 font-bold text-slate-950">Exporter mes données</h3><p className="mt-2 text-sm leading-6 text-slate-500">Téléchargez un fichier JSON contenant les informations accessibles depuis votre compte.</p><button type="button" onClick={exportData} className="portal-secondary-button mt-4"><Download className="h-4 w-4" /> Télécharger mon export</button></div>
+              <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-5"><Trash2 className="h-5 w-5 text-rose-700" /><h3 className="mt-3 font-bold text-slate-950">Supprimer mon compte</h3><p className="mt-2 text-sm leading-6 text-slate-600">Une vérification administrative protège votre compte contre toute suppression frauduleuse.</p><textarea className="portal-input mt-4 min-h-20 resize-y" maxLength={1200} value={deletionReason} onChange={(event) => setDeletionReason(event.target.value)} placeholder="Précision facultative…" /><button type="button" onClick={requestDeletion} disabled={saving} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-rose-700"><Trash2 className="h-4 w-4" /> Demander la suppression</button></div>
+            </div>
+            {privacyMessage && <p className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${privacyMessage.includes("transmise") || privacyMessage.includes("téléchargé") ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{privacyMessage}</p>}
           </section>
         </div>
 

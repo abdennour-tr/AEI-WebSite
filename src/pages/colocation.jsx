@@ -8,6 +8,7 @@ import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { housingApi } from "@/services/portalApi";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import EmptyState from "@/components/EmptyState";
+import ReportButton from "@/components/ReportButton";
 
 export default function ColocationPage() {
   const { data: annoncesData, loading, error, setData } = usePortalCollection(
@@ -210,6 +211,7 @@ export default function ColocationPage() {
               <button className="portal-primary-button mt-5 w-full">
                 Voir l’annonce
               </button>
+              <ReportButton contentType="housing" contentId={annonce.id} title={annonce.titre} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-amber-700" />
             </div>
           </Motion.div>
         ))}

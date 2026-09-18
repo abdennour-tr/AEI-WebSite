@@ -172,6 +172,11 @@ export default function MyAnnoncePage() {
               <h2 className="text-lg font-bold text-slate-950">
                 {annonce.titre}
               </h2>
+              {annonce.moderation_status && annonce.moderation_status !== "approved" && (
+                <div className={`rounded-xl px-3 py-2 text-xs font-bold ${annonce.moderation_status === "rejected" ? "bg-rose-50 text-rose-800" : "bg-amber-50 text-amber-800"}`}>
+                  {annonce.moderation_status === "rejected" ? `À corriger${annonce.moderation_reason ? ` : ${annonce.moderation_reason}` : ""}` : "En attente de validation avant publication"}
+                </div>
+              )}
               <p className="font-bold text-sky-700">
                 {typeof annonce.prix === "number"
                   ? `${annonce.prix} DH / mois`
