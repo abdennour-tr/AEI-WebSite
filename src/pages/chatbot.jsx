@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowDown,
   Bot,
   CalendarDays,
   Home,
@@ -68,10 +69,34 @@ export default function ChatbotPage() {
   const [messages, setMessages] = useState([welcomeMessage]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const shouldFollowConversationRef = useRef(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  const scrollConversationToBottom = (behavior = "smooth") => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior });
+    shouldFollowConversationRef.current = true;
+    setShowScrollButton(false);
+  };
+
+  const handleConversationScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isNearBottom = distanceFromBottom < 72;
+    shouldFollowConversationRef.current = isNearBottom;
+    setShowScrollButton(!isNearBottom);
+  };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (shouldFollowConversationRef.current) {
+      window.requestAnimationFrame(() => scrollConversationToBottom());
+    } else {
+      setShowScrollButton(true);
+    }
   }, [messages, sending]);
 
   const handleSend = async (presetQuestion) => {
@@ -138,6 +163,8 @@ export default function ChatbotPage() {
 
   const handleClearConversation = () => {
     if (sending) return;
+    shouldFollowConversationRef.current = true;
+    setShowScrollButton(false);
     setMessages([welcomeMessage]);
     setInput("");
   };
@@ -178,11 +205,14 @@ export default function ChatbotPage() {
             </button>
           </div>
 
-          <div
-            className="h-[500px] space-y-4 overflow-y-auto bg-slate-50/70 p-4 sm:p-6"
-            aria-live="polite"
-          >
-            {messages.map((message) => (
+          <div className="relative">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleConversationScroll}
+              className="h-[500px] space-y-4 overflow-y-auto bg-slate-50/70 p-4 pb-20 overscroll-contain sm:p-6 sm:pb-20"
+              aria-live="polite"
+            >
+              {messages.map((message) => (
               <Motion.div
                 key={message.id}
                 initial={{ opacity: 0, y: 8 }}
@@ -220,17 +250,29 @@ export default function ChatbotPage() {
                   )}
                 </div>
               </Motion.div>
-            ))}
+              ))}
 
-            {sending && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
-                  <LoaderCircle className="h-4 w-4 animate-spin text-sky-600" />
-                  Recherche dans le portail…
+              {sending && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+                    <LoaderCircle className="h-4 w-4 animate-spin text-sky-600" />
+                    Recherche dans le portail…
+                  </div>
                 </div>
-              </div>
+              )}
+            </div>
+
+            {showScrollButton && (
+              <button
+                type="button"
+                onClick={() => scrollConversationToBottom()}
+                className="absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-lg transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                aria-label="Revenir aux derniers messages"
+              >
+                <ArrowDown className="h-4 w-4" />
+                Derniers messages
+              </button>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           <form
