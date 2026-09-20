@@ -63,16 +63,24 @@ async function setFavorite(table, foreignKey, recordId, favorite) {
   if (!user) throw new Error("Vous devez être connecté pour enregistrer un favori.");
 
   if (favorite) {
-    const saved = await unwrap(
-      client()
-        .from(table)
-        .upsert(
-          { [foreignKey]: recordId, user_id: user.id },
-          { onConflict: `user_id,${foreignKey}` }
-        )
-        .select()
-        .single()
-    );
+    const payload = { [foreignKey]: recordId, user_id: user.id };
+    const { data, error } = await client()
+      .from(table)
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error && error.code !== "23505") throw error;
+
+    const saved = data ||
+      (await unwrap(
+        client()
+          .from(table)
+          .select("*")
+          .eq(foreignKey, recordId)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      ));
     window.dispatchEvent(new CustomEvent("aei:favorites-changed"));
     return saved;
   }
