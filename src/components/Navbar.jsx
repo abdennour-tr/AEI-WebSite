@@ -15,7 +15,6 @@ import Footer from "../components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import GlobalSearch from "@/components/GlobalSearch";
 import NotificationCenter from "@/components/NotificationCenter";
-import ThemeToggle from "@/components/ThemeToggle";
 
 function ScrollToTopDiv() {
   const { pathname, hash } = useLocation();
@@ -210,7 +209,6 @@ export default function MainNavigation({ children }) {
 
           <div className="flex shrink-0 items-center gap-1.5">
             <NotificationCenter />
-            <ThemeToggle />
             <button
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
               onClick={async () => {
