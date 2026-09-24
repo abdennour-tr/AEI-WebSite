@@ -77,17 +77,17 @@ export default function MainNavigation({ children }) {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-[100dvh] w-full min-w-0 overflow-hidden bg-slate-50">
       {/* SIDEBAR */}
       <aside
-        className={`fixed inset-y-0 left-0 w-72 border-r border-slate-200 bg-white p-5 shadow-xl transform transition-transform duration-300 ease-in-out z-50
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-72 max-w-[88vw] flex-col overflow-y-auto border-r border-slate-200 bg-white p-5 shadow-xl transform transition-transform duration-300 ease-in-out
     ${
       sidebarOpen ? "translate-x-0" : "-translate-x-full"
-    } md:translate-x-0 md:static md:inset-auto
-    flex flex-col h-full overflow-y-auto`}
+    } lg:translate-x-0 lg:static lg:inset-auto
+    `}
       >
         {/* Close button (mobile) */}
-        <div className="flex justify-end md:hidden mb-4">
+        <div className="mb-4 flex justify-end lg:hidden">
           <button
             onClick={() => setSidebarOpen(false)}
             aria-label="Fermer le menu"
@@ -172,11 +172,11 @@ export default function MainNavigation({ children }) {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col ml-0 transition-all duration-300">
+      <main className="ml-0 flex min-w-0 flex-1 flex-col transition-all duration-300">
         {/* TOP NAVBAR */}
-        <header className="z-30 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 text-slate-900 sm:px-4 md:px-6">
+        <header className="z-30 flex h-16 w-full min-w-0 shrink-0 items-center gap-2 overflow-visible border-b border-slate-200 bg-white px-3 text-slate-900 sm:gap-3 sm:px-4 md:px-6">
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="flex items-center lg:hidden">
             <button
               onClick={() => setSidebarOpen(true)}
               aria-label="Ouvrir le menu"
@@ -203,11 +203,11 @@ export default function MainNavigation({ children }) {
             ))}
           </nav>
 
-          <div className="ml-auto flex min-w-0 items-center gap-2 2xl:ml-2">
+          <div className="ml-auto flex min-w-0 items-center 2xl:ml-2">
             <GlobalSearch />
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
             <NotificationCenter />
             <button
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
@@ -222,15 +222,15 @@ export default function MainNavigation({ children }) {
         </header>
 
         {/* PAGE CONTENT */}
-        <div className="flex-1 overflow-y-auto" ref={scrollRef}>
-          <div className="mb-10">{children}</div> <Footer />
+        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto" ref={scrollRef}>
+          <div className="mb-10 min-w-0">{children}</div> <Footer />
         </div>
       </main>
 
       {/* Overlay (mobile) */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         ></div>
       )}

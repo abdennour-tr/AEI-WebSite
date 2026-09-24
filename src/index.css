@@ -175,10 +175,36 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+.portal-page,
+.portal-page > *,
+.portal-panel,
+.portal-card {
+  min-width: 0;
 }
 
 .dark body,
@@ -271,7 +297,24 @@ body {
 
 @media (max-width: 640px) {
   .portal-page {
+    gap: 1.25rem;
+    padding-inline: 0.875rem;
+    padding-top: 1rem;
     padding-bottom: 2rem;
+  }
+
+  .portal-panel {
+    padding: 1rem;
+  }
+
+  .portal-modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .portal-modal {
+    max-height: calc(100dvh - 1.5rem);
+    padding: 1rem;
+    border-radius: 1.25rem;
   }
 
   button,

@@ -503,7 +503,7 @@ export default function ClubDetailsPage() {
               <p className="mt-2 text-base leading-7 text-sky-50">Choisissez un pôle, expliquez ce que vous souhaitez apprendre ou apporter, puis suivez votre candidature directement sur cette fiche.</p>
             </div>
             {currentStatus ? (
-              <div className={`flex min-w-64 items-center gap-3 rounded-2xl border px-5 py-4 font-bold ${currentStatus.classes}`}>
+              <div className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border px-5 py-4 font-bold sm:w-auto sm:min-w-64 ${currentStatus.classes}`}>
                 <currentStatus.icon className="h-5 w-5" /> {currentStatus.label}
               </div>
             ) : (

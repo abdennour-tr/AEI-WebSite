@@ -92,21 +92,21 @@ export default function HomePage() {
 
   return (
     <div className="portal-page">
-      <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative min-w-0 overflow-hidden rounded-2xl bg-slate-950 px-5 py-6 text-white shadow-xl sm:rounded-3xl sm:px-8 sm:py-9">
         <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-sky-500/15 blur-3xl" />
         <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1.5 text-xs font-bold text-sky-200">
               <Sparkles className="h-3.5 w-3.5" /> Tableau de bord étudiant
             </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+            <h1 className="mt-4 break-words text-2xl font-bold tracking-tight sm:text-4xl">
               {greeting()}, {displayName}
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-slate-300">
               Retrouvez vos prochaines activités, vos candidatures et les contenus qui correspondent à vos intérêts.
             </p>
           </div>
-          <Link to="/profile" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-50">
+          <Link to="/profile" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-50 sm:w-auto sm:shrink-0">
             Compléter mon profil <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -116,23 +116,23 @@ export default function HomePage() {
         <LoadingSkeleton cards={4} />
       ) : (
         <>
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <section className="grid min-w-0 grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
             {[
               [snapshot.favorites.length, "favoris", Heart, "text-rose-600 bg-rose-50", "/favori"],
               [nextEvents.length, "événements à venir", CalendarDays, "text-sky-700 bg-sky-50", "/evenements"],
               [snapshot.applications.length, "candidatures clubs", CheckCircle2, "text-emerald-700 bg-emerald-50", "/clubs"],
               [unread, "notifications non lues", Bell, "text-amber-700 bg-amber-50", "/favori"],
             ].map(([value, label, Icon, color, to]) => (
-              <Link key={label} to={to} className="portal-panel group flex items-center gap-4 p-4 transition hover:border-sky-200 sm:p-5">
-                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></span>
-                <span><strong className="block text-2xl font-bold text-slate-950">{value}</strong><span className="mt-0.5 block text-sm font-semibold text-slate-500">{label}</span></span>
+              <Link key={label} to={to} className="portal-panel group flex min-w-0 flex-col items-start gap-3 p-3 transition hover:border-sky-200 min-[430px]:flex-row min-[430px]:items-center sm:gap-4 sm:p-5">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${color}`}><Icon className="h-5 w-5" /></span>
+                <span className="min-w-0"><strong className="block text-xl font-bold text-slate-950 sm:text-2xl">{value}</strong><span className="mt-0.5 block break-words text-xs font-semibold leading-5 text-slate-500 sm:text-sm">{label}</span></span>
               </Link>
             ))}
           </section>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
             <section className="portal-panel">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col items-start justify-between gap-2 min-[430px]:flex-row min-[430px]:items-center min-[430px]:gap-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">À votre agenda</p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-950">Prochains rendez-vous</h2>
@@ -142,9 +142,9 @@ export default function HomePage() {
               {nextEvents.length ? (
                 <div className="mt-6 grid gap-3">
                   {nextEvents.map((event) => (
-                    <Link key={`${event.source || "event"}-${event.id}`} to="/evenements" className="flex items-center gap-4 rounded-2xl border border-slate-200 p-4 transition hover:border-sky-200 hover:bg-sky-50/50">
+                    <Link key={`${event.source || "event"}-${event.id}`} to="/evenements" className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 p-3 transition hover:border-sky-200 hover:bg-sky-50/50 sm:gap-4 sm:p-4">
                       <span className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-950 text-white"><strong className="text-lg leading-none">{event.dayNumber}</strong><span className="mt-1 text-[10px] font-bold text-sky-300">{event.monthShort}</span></span>
-                      <span className="min-w-0 flex-1"><strong className="block truncate text-slate-950">{event.title}</strong><span className="mt-1 flex items-center gap-1.5 text-sm text-slate-500"><Clock3 className="h-3.5 w-3.5" /> {event.timeLabel} · {event.organizer || "AEI ENIAD"}</span></span>
+                      <span className="min-w-0 flex-1"><strong className="block truncate text-slate-950">{event.title}</strong><span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-500 sm:text-sm"><Clock3 className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{event.timeLabel} · {event.organizer || "AEI ENIAD"}</span></span></span>
                       <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
                     </Link>
                   ))}
