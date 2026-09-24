@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, ShoppingCart, ChevronLeft, ChevronRight, Heart, Plus } from "lucide-react";
+import { Search, ShoppingCart, ChevronLeft, ChevronRight, Heart, LoaderCircle, MapPin, PackageOpen, Plus, X } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import fallbackProducts from "../data/Produits";
@@ -9,6 +9,17 @@ import { marketplaceApi } from "@/services/portalApi";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import EmptyState from "@/components/EmptyState";
 import ReportButton from "@/components/ReportButton";
+import ImageUploadField from "@/components/ImageUploadField";
+import { uploadPublicImages } from "@/services/storageApi";
+
+const emptyProductForm = {
+  title: "",
+  description: "",
+  category: "Informatique",
+  city: "Berkane",
+  item_condition: "Très bon état",
+  price: "",
+};
 
 export default function MarketPlacePage() {
   const { data: produits, loading, error, setData } = usePortalCollection(
@@ -29,6 +40,12 @@ export default function MarketPlacePage() {
   const [filterVille, setFilterVille] = useState("");
   const [sort, setSort] = useState("");
   const [favoriteError, setFavoriteError] = useState("");
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [productFiles, setProductFiles] = useState([]);
+  const [form, setForm] = useState(emptyProductForm);
 
   const [page, setPage] = useState(1);
   const perPage = 6;
@@ -70,6 +87,46 @@ export default function MarketPlacePage() {
     }
   };
 
+  const openPublish = () => {
+    setForm(emptyProductForm);
+    setProductFiles([]);
+    setFormError("");
+    setPublishOpen(true);
+  };
+
+  const publishProduct = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setFormError("");
+    try {
+      const imageUrls = await uploadPublicImages("product-images", productFiles);
+      const created = await marketplaceApi.create({
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        category: form.category,
+        city: form.city.trim(),
+        item_condition: form.item_condition,
+        price: Number(form.price),
+        image_urls: imageUrls,
+        status: "active",
+      });
+      setData((items) => [created, ...items]);
+      setPublishOpen(false);
+      setPage(1);
+    } catch (submitError) {
+      setFormError(submitError.message || "Impossible de publier le produit.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const selectedImages = selectedProduct
+    ? selectedProduct.image_urls?.length
+      ? selectedProduct.image_urls
+      : selectedProduct.img
+        ? [selectedProduct.img]
+        : []
+    : [];
+
   return (
     <div className="portal-page">
       <PageHeader
@@ -78,7 +135,7 @@ export default function MarketPlacePage() {
         title="Marketplace étudiant"
         description="Achetez, vendez ou échangez du matériel simplement au sein de la communauté AEI."
       >
-        <button className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-400">
+        <button type="button" onClick={openPublish} className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-400">
           <Plus className="h-4 w-4" /> Publier un produit
         </button>
       </PageHeader>
@@ -164,11 +221,11 @@ export default function MarketPlacePage() {
             className="portal-card group"
           >
             <div className="relative h-52 overflow-hidden">
-              <img
+              {p.img ? <img
                 src={p.img}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                alt=""
-              />
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                alt={p.titre}
+              /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-sky-100 to-slate-100 text-sky-700"><PackageOpen className="h-12 w-12" /></div>}
               <button
                 type="button"
                 onClick={() => toggleFavorite(p)}
@@ -204,7 +261,7 @@ export default function MarketPlacePage() {
 
               <p className="mt-1 text-xs text-slate-500">{p.date}</p>
 
-              <button className="portal-primary-button mt-5 w-full">
+              <button type="button" onClick={() => setSelectedProduct(p)} className="portal-primary-button mt-5 w-full">
                 <ShoppingCart size={18} />
                 Voir le produit
               </button>
@@ -246,6 +303,51 @@ export default function MarketPlacePage() {
           >
             <ChevronRight />
           </Button>
+        </div>
+      )}
+
+      {selectedProduct && (
+        <div className="portal-modal-backdrop" onMouseDown={() => setSelectedProduct(null)}>
+          <section className="portal-modal max-w-3xl" role="dialog" aria-modal="true" aria-labelledby="product-details-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button type="button" onClick={() => setSelectedProduct(null)} className="absolute right-4 top-4 z-10 rounded-xl bg-white/90 p-2 text-slate-500 shadow hover:text-slate-900" aria-label="Fermer"><X className="h-5 w-5" /></button>
+            {selectedImages.length ? (
+              <div className="grid grid-cols-2 gap-2 overflow-hidden rounded-2xl">
+                {selectedImages.slice(0, 4).map((url, index) => <img key={url} src={url} alt={`${selectedProduct.titre} ${index + 1}`} className={`w-full object-cover ${index === 0 && selectedImages.length === 1 ? "col-span-2 h-72" : "h-40"}`} />)}
+              </div>
+            ) : <div className="flex h-48 items-center justify-center rounded-2xl bg-sky-50 text-sky-700"><PackageOpen className="h-14 w-14" /></div>}
+            <div className="mt-6 pr-10">
+              <span className="portal-badge">{selectedProduct.categorie}</span>
+              <h2 id="product-details-title" className="mt-3 text-2xl font-black text-slate-950">{selectedProduct.titre}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{selectedProduct.description || "Aucune description supplémentaire."}</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Prix</p><p className="mt-1 text-xl font-black text-sky-700">{selectedProduct.prix} DH</p></div>
+                <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">État</p><p className="mt-1 font-bold text-slate-800">{selectedProduct.etat}</p></div>
+                <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Ville</p><p className="mt-1 flex items-center gap-1 font-bold text-slate-800"><MapPin className="h-4 w-4 text-sky-600" />{selectedProduct.ville}</p></div>
+              </div>
+              <ReportButton contentType="product" contentId={selectedProduct.id} title={selectedProduct.titre} className="portal-secondary-button mt-6 w-full" />
+            </div>
+          </section>
+        </div>
+      )}
+
+      {publishOpen && (
+        <div className="portal-modal-backdrop" onMouseDown={() => !saving && setPublishOpen(false)}>
+          <section className="portal-modal max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="product-form-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button type="button" onClick={() => setPublishOpen(false)} className="absolute right-4 top-4 rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Fermer"><X className="h-5 w-5" /></button>
+            <h2 id="product-form-title" className="pr-10 text-2xl font-black text-slate-950">Publier un produit</h2>
+            <p className="mt-2 text-sm text-slate-500">Présentez clairement votre produit. Il sera soumis à la validation de l’équipe AEI.</p>
+            <form onSubmit={publishProduct} className="mt-6 grid gap-4 sm:grid-cols-2">
+              <label className="sm:col-span-2 text-sm font-bold text-slate-700">Titre<input required minLength={3} maxLength={180} className="portal-input mt-2" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Ordinateur portable étudiant" /></label>
+              <label className="sm:col-span-2 text-sm font-bold text-slate-700">Description<textarea className="portal-input mt-2 min-h-28 resize-y" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Caractéristiques, accessoires inclus, raison de la vente…" /></label>
+              <label className="text-sm font-bold text-slate-700">Catégorie<select className="portal-select mt-2" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label>
+              <label className="text-sm font-bold text-slate-700">Ville<input required className="portal-input mt-2" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} /></label>
+              <label className="text-sm font-bold text-slate-700">État<select className="portal-select mt-2" value={form.item_condition} onChange={(event) => setForm({ ...form, item_condition: event.target.value })}><option>Neuf</option><option>Comme neuf</option><option>Très bon état</option><option>Bon état</option><option>État correct</option></select></label>
+              <label className="text-sm font-bold text-slate-700">Prix (DH)<input required type="number" min="0" step="1" className="portal-input mt-2" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} /></label>
+              <div className="sm:col-span-2"><ImageUploadField files={productFiles} onFilesChange={setProductFiles} maxFiles={6} label="Photos du produit" /></div>
+              {formError && <p className="sm:col-span-2 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{formError}</p>}
+              <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="portal-secondary-button" onClick={() => setPublishOpen(false)}>Annuler</button><button type="submit" className="portal-primary-button" disabled={saving}>{saving && <LoaderCircle className="h-4 w-4 animate-spin" />}Publier le produit</button></div>
+            </form>
+          </section>
         </div>
       )}
 

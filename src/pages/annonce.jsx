@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +16,12 @@ import fallbackAnnonces from "../data/Annonces";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { housingApi } from "@/services/portalApi";
+import { uploadPublicImages } from "@/services/storageApi";
+import ImageUploadField from "@/components/ImageUploadField";
 
 export default function MyAnnoncePage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: annonces, loading, error, setData } = usePortalCollection(
     housingApi.listMine,
     fallbackAnnonces
@@ -27,6 +32,8 @@ export default function MyAnnoncePage() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [imageFiles, setImageFiles] = useState([]);
+  const [existingImageUrls, setExistingImageUrls] = useState([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -34,7 +41,6 @@ export default function MyAnnoncePage() {
     property_type: "Chambre privée",
     monthly_price: "",
     available_from: "",
-    image_url: "",
   });
 
   const openCreate = () => {
@@ -46,8 +52,9 @@ export default function MyAnnoncePage() {
       property_type: "Chambre privée",
       monthly_price: "",
       available_from: "",
-      image_url: "",
     });
+    setImageFiles([]);
+    setExistingImageUrls([]);
     setFormError("");
     setModalOpen(true);
   };
@@ -61,29 +68,37 @@ export default function MyAnnoncePage() {
       property_type: annonce.property_type || annonce.type || "Chambre privée",
       monthly_price: String(annonce.monthly_price ?? annonce.prix ?? ""),
       available_from: annonce.available_from || "",
-      image_url: annonce.image_urls?.[0] || annonce.image || "",
     });
+    setImageFiles([]);
+    setExistingImageUrls(annonce.image_urls?.length ? annonce.image_urls : annonce.image ? [annonce.image] : []);
     setFormError("");
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("nouvelle") === "1") {
+      openCreate();
+      navigate("/mes-annonces", { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
     setFormError("");
 
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim(),
-      city: form.city.trim(),
-      property_type: form.property_type,
-      monthly_price: Number(form.monthly_price),
-      available_from: form.available_from || null,
-      image_urls: form.image_url.trim() ? [form.image_url.trim()] : [],
-      status: "active",
-    };
-
     try {
+      const uploadedUrls = await uploadPublicImages("housing-images", imageFiles);
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        city: form.city.trim(),
+        property_type: form.property_type,
+        monthly_price: Number(form.monthly_price),
+        available_from: form.available_from || null,
+        image_urls: [...existingImageUrls, ...uploadedUrls],
+        status: "active",
+      };
       if (editingId) {
         const updated = await housingApi.update(editingId, payload);
         setData((items) =>
@@ -332,16 +347,16 @@ export default function MyAnnoncePage() {
                   placeholder="Équipements, proximité, conditions…"
                 />
               </label>
-              <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
-                URL de l’image (facultatif)
-                <input
-                  className="portal-input mt-2"
-                  type="url"
-                  value={form.image_url}
-                  onChange={(event) => setForm({ ...form, image_url: event.target.value })}
-                  placeholder="https://…"
+              <div className="sm:col-span-2">
+                <ImageUploadField
+                  files={imageFiles}
+                  onFilesChange={setImageFiles}
+                  existingUrls={existingImageUrls}
+                  onExistingUrlsChange={setExistingImageUrls}
+                  maxFiles={6}
+                  label="Photos du logement"
                 />
-              </label>
+              </div>
 
               {formError && (
                 <p className="sm:col-span-2 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">

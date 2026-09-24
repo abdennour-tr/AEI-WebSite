@@ -30,6 +30,17 @@ export const adminApi = {
     return groups.flat().sort((a, b) => new Date(a.updated_at || a.created_at) - new Date(b.updated_at || b.created_at));
   },
   listReports: () => unwrap(client().from("content_reports").select("*, reporter:public_profiles!content_reports_reporter_id_fkey(display_name)").order("created_at", { ascending: false }).limit(100)),
+  subscribeReports(callback) {
+    const channel = client()
+      .channel("admin-content-reports")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "content_reports" },
+        callback
+      )
+      .subscribe();
+    return () => client().removeChannel(channel);
+  },
   listAuditLog: () => unwrap(client().from("admin_audit_log").select("*, actor:public_profiles!admin_audit_log_actor_id_fkey(display_name)").order("created_at", { ascending: false }).limit(100)),
   listProfiles: () => unwrap(client().from("profiles").select("id,email,full_name,role,created_at").order("created_at", { ascending: false }).limit(200)),
   listDeletionRequests: () => unwrap(client().from("account_deletion_requests").select("*, profile:profiles!account_deletion_requests_user_id_fkey(email,full_name)").order("created_at", { ascending: false })),

@@ -61,7 +61,11 @@ export default function AdminDashboardPage() {
     setLoading(false);
   }, [role]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const unsubscribe = adminApi.subscribeReports(() => load());
+    return () => { unsubscribe(); };
+  }, [load]);
 
   const pendingReports = reports.filter((item) => item.status === "pending");
   const pendingDeletions = deletions.filter((item) => ["requested", "processing"].includes(item.status));

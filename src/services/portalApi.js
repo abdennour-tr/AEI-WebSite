@@ -263,8 +263,8 @@ export const marketplaceApi = {
       favorite
     ),
   listMine: () => listOwned("marketplace_products", "seller_id"),
-  create: (payload) => createRecord("marketplace_products", payload),
-  update: (id, payload) => updateRecord("marketplace_products", id, payload),
+  create: async (payload) => mapProduct(await createRecord("marketplace_products", payload)),
+  update: async (id, payload) => mapProduct(await updateRecord("marketplace_products", id, payload)),
   remove: (id) => deleteRecord("marketplace_products", id),
 };
 

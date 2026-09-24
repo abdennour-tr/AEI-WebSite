@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Building2, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, Plus } from "lucide-react";
+import { Building2, CalendarDays, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, Plus, X } from "lucide-react";
 import fallbackAnnonces from "@/data/Colocation";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
@@ -22,6 +23,7 @@ export default function ColocationPage() {
   const [prix, setPrix] = useState("");
   const [date, setDate] = useState("");
   const [favoriteError, setFavoriteError] = useState("");
+  const [selectedAnnonce, setSelectedAnnonce] = useState(null);
 
   // PAGINATION
   const [page, setPage] = useState(1);
@@ -62,6 +64,13 @@ export default function ColocationPage() {
       setFavoriteError(error.message || "Le favori n’a pas pu être enregistré.");
     }
   };
+  const selectedImages = selectedAnnonce
+    ? selectedAnnonce.image_urls?.length
+      ? selectedAnnonce.image_urls
+      : selectedAnnonce.cover
+        ? [selectedAnnonce.cover]
+        : []
+    : [];
 
   return (
     <div className="portal-page">
@@ -71,9 +80,9 @@ export default function ColocationPage() {
         title="Annonces de colocation"
         description="Trouvez un logement adapté à votre budget et proche de votre campus."
       >
-        <button className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-400">
+        <Link to="/mes-annonces?nouvelle=1" className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-400">
           <Plus className="h-4 w-4" /> Publier une annonce
-        </button>
+        </Link>
       </PageHeader>
 
       {favoriteError && (
@@ -154,11 +163,11 @@ export default function ColocationPage() {
             className="portal-card"
           >
             <div className="relative h-48 w-full overflow-hidden">
-              <img
+              {annonce.cover ? <img
                 src={annonce.cover}
-                className="w-full h-full object-cover"
-                alt="cover"
-              />
+                className="h-full w-full object-cover"
+                alt={annonce.titre}
+              /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-sky-100 to-slate-100 text-sky-700"><Building2 className="h-12 w-12" /></div>}
               <button
                 type="button"
                 onClick={() => toggleFavorite(annonce)}
@@ -208,7 +217,7 @@ export default function ColocationPage() {
                 <Clock3 className="h-4 w-4" /> Il y a {annonce.posted} jours
               </p>
 
-              <button className="portal-primary-button mt-5 w-full">
+              <button type="button" onClick={() => setSelectedAnnonce(annonce)} className="portal-primary-button mt-5 w-full">
                 Voir l’annonce
               </button>
               <ReportButton contentType="housing" contentId={annonce.id} title={annonce.titre} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-amber-700" />
@@ -249,6 +258,30 @@ export default function ColocationPage() {
           >
             <ChevronRight />
           </Button>
+        </div>
+      )}
+
+      {selectedAnnonce && (
+        <div className="portal-modal-backdrop" onMouseDown={() => setSelectedAnnonce(null)}>
+          <section className="portal-modal max-w-3xl" role="dialog" aria-modal="true" aria-labelledby="housing-details-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button type="button" onClick={() => setSelectedAnnonce(null)} className="absolute right-4 top-4 z-10 rounded-xl bg-white/90 p-2 text-slate-500 shadow hover:text-slate-900" aria-label="Fermer"><X className="h-5 w-5" /></button>
+            {selectedImages.length ? (
+              <div className="grid grid-cols-2 gap-2 overflow-hidden rounded-2xl">
+                {selectedImages.slice(0, 4).map((url, index) => <img key={url} src={url} alt={`${selectedAnnonce.titre} ${index + 1}`} className={`w-full object-cover ${index === 0 && selectedImages.length === 1 ? "col-span-2 h-72" : "h-40"}`} />)}
+              </div>
+            ) : <div className="flex h-48 items-center justify-center rounded-2xl bg-sky-50 text-sky-700"><Building2 className="h-14 w-14" /></div>}
+            <div className="mt-6 pr-10">
+              <span className="portal-badge">{selectedAnnonce.type}</span>
+              <h2 id="housing-details-title" className="mt-3 text-2xl font-black text-slate-950">{selectedAnnonce.titre}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{selectedAnnonce.desc}</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Loyer mensuel</p><p className="mt-1 text-xl font-black text-sky-700">{selectedAnnonce.prix} DH</p></div>
+                <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Emplacement</p><p className="mt-1 flex items-center gap-1 font-bold text-slate-800"><MapPin className="h-4 w-4 text-sky-600" />{selectedAnnonce.ville}</p></div>
+                <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Disponibilité</p><p className="mt-1 flex items-center gap-1 font-bold text-slate-800"><CalendarDays className="h-4 w-4 text-sky-600" />{selectedAnnonce.available_from ? new Date(selectedAnnonce.available_from).toLocaleDateString("fr-FR") : "À confirmer"}</p></div>
+              </div>
+              <ReportButton contentType="housing" contentId={selectedAnnonce.id} title={selectedAnnonce.titre} className="portal-secondary-button mt-6 w-full" />
+            </div>
+          </section>
         </div>
       )}
 

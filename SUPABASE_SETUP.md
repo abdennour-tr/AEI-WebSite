@@ -39,6 +39,8 @@ Dans **Supabase → SQL Editor**, exécuter les fichiers dans cet ordre :
 1. `supabase/01_schema.sql` — types, tables, relations, index et déclencheurs.
 2. `supabase/02_rls_policies.sql` — permissions et politiques Row Level Security.
 3. `supabase/03_storage.sql` — buckets et règles d’accès aux fichiers.
+4. Exécuter ensuite, dans l’ordre, les migrations `04_*.sql` à `12_*.sql`.
+5. `supabase/13_report_notifications.sql` — notifications administrateur lors des signalements.
 
 Chaque script doit terminer sans erreur avant de passer au suivant.
 
@@ -93,6 +95,29 @@ npm run seed:supabase
 
 Les annonces, projets, favoris et likes ajoutés ensuite depuis l’interface sont
 écrits directement dans les tables Supabase correspondantes.
+
+## Images des publications
+
+Les images de colocation, produits et projets sont choisies depuis l’appareil,
+puis téléversées dans les buckets publics `housing-images`, `product-images` et
+`project-images`. Le script `supabase/03_storage.sql` doit avoir été exécuté
+pour que les membres authentifiés puissent écrire dans leur propre dossier.
+
+## E-mails de signalement
+
+Les signalements sont toujours enregistrés dans `content_reports` et visibles
+dans le tableau de bord administrateur. Pour avertir également
+`atrariabdennour642@gmail.com` par e-mail, ajouter ces variables uniquement dans
+Vercel :
+
+```env
+RESEND_API_KEY=YOUR_RESEND_API_KEY
+REPORTS_FROM_EMAIL=Portail AEI <signalements@YOUR_VERIFIED_DOMAIN>
+ADMIN_REPORT_EMAIL=atrariabdennour642@gmail.com
+```
+
+Le domaine utilisé dans `REPORTS_FROM_EMAIL` doit être validé chez Resend. Ces
+variables sont privées et ne doivent jamais recevoir le préfixe `VITE_`.
 
 ## Règles d’autorisation retenues
 

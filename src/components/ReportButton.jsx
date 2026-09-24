@@ -15,8 +15,10 @@ export default function ReportButton({ contentType, contentId, title, className 
     event.preventDefault();
     setLoading(true); setMessage("");
     try {
-      await reportContent({ contentType, contentId, reason, details: details.trim() });
-      setMessage("Signalement envoyé. L’équipe de modération va l’examiner.");
+      const result = await reportContent({ contentType, contentId, reason, details: details.trim() });
+      setMessage(result.emailed
+        ? "Signalement envoyé. L’administrateur a également été averti par e-mail."
+        : "Signalement envoyé. Il apparaît maintenant dans le tableau de bord administrateur.");
       setDetails("");
     } catch (error) {
       setMessage(error.message || "Le signalement n’a pas pu être envoyé.");
@@ -31,7 +33,7 @@ export default function ReportButton({ contentType, contentId, title, className 
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><Flag className="h-5 w-5" /></span>
         <h2 id="report-title" className="mt-4 pr-10 text-2xl font-black text-slate-950">Signaler ce contenu</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">Votre signalement concernant « {title} » sera transmis uniquement aux modérateurs.</p>
-        {message.includes("envoyé") ? <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800"><CheckCircle2 className="mb-3 h-6 w-6" />{message}<button type="button" onClick={() => setOpen(false)} className="portal-primary-button mt-5 w-full">Fermer</button></div> : <form onSubmit={submit} className="mt-6 space-y-4">
+        {message.startsWith("Signalement envoyé") ? <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800"><CheckCircle2 className="mb-3 h-6 w-6" />{message}<button type="button" onClick={() => setOpen(false)} className="portal-primary-button mt-5 w-full">Fermer</button></div> : <form onSubmit={submit} className="mt-6 space-y-4">
           <label className="block text-sm font-bold text-slate-700">Motif<select className="portal-select mt-2" value={reason} onChange={(event) => setReason(event.target.value)}>{reasons.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label className="block text-sm font-bold text-slate-700">Précisions facultatives<textarea className="portal-input mt-2 min-h-28 resize-y" maxLength={1200} value={details} onChange={(event) => setDetails(event.target.value)} placeholder="Décrivez brièvement le problème constaté…" /></label>
           {message && <p className="text-sm font-semibold text-rose-700">{message}</p>}

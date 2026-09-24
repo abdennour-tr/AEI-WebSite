@@ -153,7 +153,7 @@ export default function PublicProjectsPage() {
               Explorez les réalisations de l’ENIAD, découvrez leur équipe et rejoignez celles qui recherchent de nouveaux talents.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/mes-projets" className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200">
+              <Link to="/mes-projets?nouveau=1" className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200">
                 <Plus className="h-4 w-4" /> Déposer un projet
               </Link>
               <a href="#catalogue" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10">

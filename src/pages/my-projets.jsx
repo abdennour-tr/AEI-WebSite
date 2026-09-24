@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,8 @@ import fallbackProjects from "@/data/my-projects";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { studentProjectsApi } from "@/services/projectsApi";
+import { uploadPublicImages } from "@/services/storageApi";
+import ImageUploadField from "@/components/ImageUploadField";
 
 const emptyForm = {
   title: "",
@@ -28,14 +31,14 @@ const emptyForm = {
   repository_url: "",
   demo_url: "",
   documentation_url: "",
-  cover_url: "",
-  screenshot_urls: "",
   team_members: "",
   seeking_collaborators: false,
   collaborator_roles: "",
 };
 
 export default function ProjetsPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: projets, loading, error, setData } = usePortalCollection(
     studentProjectsApi.listMine,
     fallbackProjects
@@ -46,11 +49,19 @@ export default function ProjetsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [coverFiles, setCoverFiles] = useState([]);
+  const [existingCoverUrls, setExistingCoverUrls] = useState([]);
+  const [screenshotFiles, setScreenshotFiles] = useState([]);
+  const [existingScreenshotUrls, setExistingScreenshotUrls] = useState([]);
   const projetsPerPage = 6;
 
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setCoverFiles([]);
+    setExistingCoverUrls([]);
+    setScreenshotFiles([]);
+    setExistingScreenshotUrls([]);
     setFormError("");
     setModalOpen(true);
   };
@@ -67,56 +78,59 @@ export default function ProjetsPage() {
       repository_url: project.repository_url || "",
       demo_url: project.demo_url || "",
       documentation_url: project.documentation_url || "",
-      cover_url: project.cover_url || "",
-      screenshot_urls: project.screenshot_urls?.join(", ") || "",
       team_members: (project.team_members || [])
         .map((member) => `${member.name || ""} | ${member.role || ""}`)
         .join("\n"),
       seeking_collaborators: Boolean(project.seeking_collaborators),
       collaborator_roles: project.collaborator_roles?.join(", ") || "",
     });
+    setCoverFiles([]);
+    setExistingCoverUrls(project.cover_url ? [project.cover_url] : []);
+    setScreenshotFiles([]);
+    setExistingScreenshotUrls(project.screenshot_urls || []);
     setFormError("");
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("nouveau") === "1") {
+      openCreate();
+      navigate("/mes-projets", { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
     setFormError("");
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim(),
-      tech_stack: form.tech_stack
-        .split(",")
-        .map((tech) => tech.trim())
-        .filter(Boolean),
-      field_of_study: form.field_of_study.trim() || null,
-      academic_year: form.academic_year.trim() || null,
-      project_stage: form.project_stage,
-      repository_url: form.repository_url.trim() || null,
-      demo_url: form.demo_url.trim() || null,
-      documentation_url: form.documentation_url.trim() || null,
-      cover_url: form.cover_url.trim() || null,
-      screenshot_urls: form.screenshot_urls
-        .split(",")
-        .map((url) => url.trim())
-        .filter(Boolean),
-      team_members: form.team_members
-        .split("\n")
-        .map((line) => {
-          const [name, role] = line.split("|").map((part) => part.trim());
-          return { name, role: role || "Membre de l’équipe" };
-        })
-        .filter((member) => member.name),
-      seeking_collaborators: form.seeking_collaborators,
-      collaborator_roles: form.collaborator_roles
-        .split(",")
-        .map((role) => role.trim())
-        .filter(Boolean),
-      status: "published",
-    };
-
     try {
+      const [uploadedCover, uploadedScreenshots] = await Promise.all([
+        uploadPublicImages("project-images", coverFiles),
+        uploadPublicImages("project-images", screenshotFiles),
+      ]);
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        tech_stack: form.tech_stack.split(",").map((tech) => tech.trim()).filter(Boolean),
+        field_of_study: form.field_of_study.trim() || null,
+        academic_year: form.academic_year.trim() || null,
+        project_stage: form.project_stage,
+        repository_url: form.repository_url.trim() || null,
+        demo_url: form.demo_url.trim() || null,
+        documentation_url: form.documentation_url.trim() || null,
+        cover_url: uploadedCover[0] || existingCoverUrls[0] || null,
+        screenshot_urls: [...existingScreenshotUrls, ...uploadedScreenshots],
+        team_members: form.team_members
+          .split("\n")
+          .map((line) => {
+            const [name, role] = line.split("|").map((part) => part.trim());
+            return { name, role: role || "Membre de l’équipe" };
+          })
+          .filter((member) => member.name),
+        seeking_collaborators: form.seeking_collaborators,
+        collaborator_roles: form.collaborator_roles.split(",").map((role) => role.trim()).filter(Boolean),
+        status: "published",
+      };
       if (editingId) {
         const updated = await studentProjectsApi.update(editingId, payload);
         setData((items) =>
@@ -396,25 +410,26 @@ export default function ProjetsPage() {
                   placeholder="https://docs.mon-projet…"
                 />
               </label>
-              <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
-                Image de couverture
-                <input
-                  className="portal-input mt-2"
-                  type="url"
-                  value={form.cover_url}
-                  onChange={(event) => setForm({ ...form, cover_url: event.target.value })}
-                  placeholder="https://…"
+              <div className="sm:col-span-2">
+                <ImageUploadField
+                  files={coverFiles}
+                  onFilesChange={setCoverFiles}
+                  existingUrls={existingCoverUrls}
+                  onExistingUrlsChange={setExistingCoverUrls}
+                  maxFiles={1}
+                  label="Image de couverture"
                 />
-              </label>
-              <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
-                Captures supplémentaires, séparées par des virgules
-                <input
-                  className="portal-input mt-2"
-                  value={form.screenshot_urls}
-                  onChange={(event) => setForm({ ...form, screenshot_urls: event.target.value })}
-                  placeholder="https://capture-1…, https://capture-2…"
+              </div>
+              <div className="sm:col-span-2">
+                <ImageUploadField
+                  files={screenshotFiles}
+                  onFilesChange={setScreenshotFiles}
+                  existingUrls={existingScreenshotUrls}
+                  onExistingUrlsChange={setExistingScreenshotUrls}
+                  maxFiles={6}
+                  label="Captures supplémentaires"
                 />
-              </label>
+              </div>
               <label className="sm:col-span-2 text-sm font-semibold text-slate-700">
                 Membres de l’équipe — un par ligne, au format Nom | Rôle
                 <textarea

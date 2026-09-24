@@ -5,6 +5,7 @@ import { sites } from "@openai/sites-vite-plugin";
 import path from "path";
 import { fileURLToPath } from "url";
 import portalWorker from "./server/worker.js";
+import { handleReportNotification } from "./api/report-notification.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +34,27 @@ function portalApiDevPlugin(environment) {
         webResponse.headers.forEach((value, name) => response.setHeader(name, value));
         response.end(Buffer.from(await webResponse.arrayBuffer()));
       });
+
+      server.middlewares.use("/api/report-notification", async (request, response) => {
+        const chunks = [];
+        for await (const chunk of request) chunks.push(chunk);
+
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(request.headers)) {
+          if (Array.isArray(value)) value.forEach((item) => headers.append(name, item));
+          else if (value !== undefined) headers.set(name, value);
+        }
+
+        const webRequest = new Request("http://localhost/api/report-notification", {
+          method: request.method,
+          headers,
+          body: chunks.length ? Buffer.concat(chunks) : undefined,
+        });
+        const webResponse = await handleReportNotification(webRequest, environment);
+        response.statusCode = webResponse.status;
+        webResponse.headers.forEach((value, name) => response.setHeader(name, value));
+        response.end(Buffer.from(await webResponse.arrayBuffer()));
+      });
     },
   };
 }
@@ -50,6 +72,12 @@ export default defineConfig(({ mode }) => {
         SUPABASE_ANON_KEY:
           process.env.SUPABASE_ANON_KEY ||
           localEnvironment.VITE_SUPABASE_PUBLISHABLE_KEY,
+        RESEND_API_KEY:
+          process.env.RESEND_API_KEY || localEnvironment.RESEND_API_KEY,
+        REPORTS_FROM_EMAIL:
+          process.env.REPORTS_FROM_EMAIL || localEnvironment.REPORTS_FROM_EMAIL,
+        ADMIN_REPORT_EMAIL:
+          process.env.ADMIN_REPORT_EMAIL || localEnvironment.ADMIN_REPORT_EMAIL,
       }),
       tailwindcss(),
       react(),
