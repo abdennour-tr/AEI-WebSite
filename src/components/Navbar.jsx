@@ -10,7 +10,7 @@ import gestion from "../assets/icons/gestion-de-projet.png";
 import publicite from "../assets/icons/la-publicite.png";
 import stage from "../assets/icons/stage.png";
 import evenement from "../assets/icons/un-evenement.png";
-import { LogOut, Menu, ShieldCheck, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 import Footer from "../components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import GlobalSearch from "@/components/GlobalSearch";
@@ -51,7 +51,7 @@ export default function MainNavigation({ children }) {
   const menuItems = [
     { name: "Découvrir les clubs", image: communautes, to: "/clubs" },
     {
-      name: "Mes annonces de colocation",
+      name: "Mes annonces / Marketplace",
       image: colocation,
       to: "/mes-annonces",
     },
@@ -62,9 +62,6 @@ export default function MainNavigation({ children }) {
     { name: "Forum / Communauté", image: communautes, to: "/forum-communaute" },
     { name: "Publicités", image: publicite, to: "/publicites" },
     { name: "Chatbot IA", image: chat, to: "/chatbot" },
-    ...(["admin", "moderator"].includes(accountProfile?.role)
-      ? [{ name: "Administration", icon: ShieldCheck, to: "/admin" }]
-      : []),
   ];
 
   const topLinks = [
@@ -114,7 +111,7 @@ export default function MainNavigation({ children }) {
                 {displayName}
               </h4>
               <span className="mt-0.5 block text-[11px] font-bold uppercase tracking-wider text-sky-700">
-                {accountProfile?.role === "admin" ? "Administrateur" : "Espace étudiant"}
+                Espace étudiant
               </span>
             </div>
           </div>

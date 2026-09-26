@@ -1,11 +1,9 @@
 import { LoaderCircle, ShieldX } from "lucide-react";
-import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
+import { Link, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminRoute() {
   const { loading, profileLoading, session, profile } = useAuth();
-  const location = useLocation();
-
   if (loading || profileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#070b17] text-white">
@@ -17,7 +15,7 @@ export default function AdminRoute() {
     );
   }
 
-  if (!session) return <Navigate to="/connexion" replace state={{ from: location }} />;
+  if (!session) return <Navigate to="/admin" replace />;
 
   if (!profile || !["admin", "moderator"].includes(profile.role)) {
     return (
@@ -26,7 +24,7 @@ export default function AdminRoute() {
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-400/10 text-rose-300"><ShieldX className="h-7 w-7" /></span>
           <h1 className="mt-5 text-2xl font-bold">Accès administration refusé</h1>
           <p className="mt-3 text-sm leading-7 text-slate-300">Cet espace est réservé aux modérateurs et aux administrateurs autorisés.</p>
-          <Link to="/" className="mt-6 inline-flex rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950">Retour au portail</Link>
+          <Link to="/admin" className="mt-6 inline-flex rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950">Retour à la connexion</Link>
         </section>
       </main>
     );

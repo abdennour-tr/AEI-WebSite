@@ -232,6 +232,16 @@ function compactText(value, maxLength = 360) {
   return String(value).replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
+function compactAnswer(value, maxLength = 2400) {
+  if (!value) return null;
+  return String(value)
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, maxLength);
+}
+
 function compactRows(rows, fields) {
   return rows.map((row) =>
     Object.fromEntries(
@@ -344,7 +354,7 @@ RÈGLES ABSOLUES :
 6. Pour "le meilleur club", précise que le choix dépend des intérêts et recommande à partir des domaines réels des clubs.
 7. Pour les dates relatives comme "la semaine prochaine", calcule uniquement à partir de generated_at et starts_at.
 8. Pour un budget, compare les prix numériques réellement présents. N'invente aucun produit ou logement.
-9. Réponds en français, de manière concise et pratique. Utilise les noms exacts et les prix en DH. Écris answer en texte simple, sans Markdown.
+9. Réponds en français, de manière concise, pratique et structurée. Utilise les noms exacts et les prix en DH. Écris answer en texte simple, sans Markdown. Pour plusieurs résultats, commence par une courte introduction puis place chaque résultat sur une ligne commençant par « • ». Sépare les idées importantes par des retours à la ligne et évite les longs paragraphes.
 10. Ne place aucune URL dans answer. Ajoute seulement les liens utiles dans links, avec une étiquette claire et une URL copiée exactement depuis le contexte.
 
 FORMAT JSON OBLIGATOIRE :
@@ -536,7 +546,7 @@ async function handleChatRequest(request, env) {
     return json({
       scope: "portal",
       answer:
-        compactText(result.answer, 2400) ||
+        compactAnswer(result.answer, 2400) ||
         "Je n’ai pas trouvé cette information dans le portail.",
       links: sanitizeLinks(result.links, context, messages),
     });

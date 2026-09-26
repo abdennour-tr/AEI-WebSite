@@ -75,6 +75,7 @@ export const studentProjectsApi = {
           .from("student_projects")
           .select("*")
           .eq("status", "published")
+          .eq("moderation_status", "approved")
           .order("created_at", { ascending: false })
       ),
       loadContext(),
@@ -104,6 +105,7 @@ export const studentProjectsApi = {
           .from("student_projects")
           .select("*")
           .eq("id", projectId)
+          .eq("moderation_status", "approved")
           .maybeSingle()
       ),
       loadContext(),
@@ -158,7 +160,7 @@ export const studentProjectsApi = {
     const favorites = await unwrap(client().rpc("get_project_favorites"));
     if (!favorites?.length) return [];
     const projects = await unwrap(
-      client().from("student_projects").select("*").in(
+      client().from("student_projects").select("*").eq("moderation_status", "approved").in(
         "id",
         favorites.map((favorite) => favorite.project_id)
       )

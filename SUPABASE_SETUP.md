@@ -41,8 +41,44 @@ Dans **Supabase → SQL Editor**, exécuter les fichiers dans cet ordre :
 3. `supabase/03_storage.sql` — buckets et règles d’accès aux fichiers.
 4. Exécuter ensuite, dans l’ordre, les migrations `04_*.sql` à `12_*.sql`.
 5. `supabase/13_report_notifications.sql` — notifications administrateur lors des signalements.
+6. `supabase/14_listing_contact_phone.sql` — numéros d’appel pour les colocations et produits Marketplace.
+7. `supabase/15_admin_content_control.sql` — inventaire et suppression sécurisée des contenus par l’administrateur.
+8. `supabase/16_club_accounts_board_and_events.sql` — comptes institutionnels, bureaux des clubs et rattachement des événements existants.
+9. `supabase/17_course_library_and_ai_summaries.sql` — gestion des PDF de cours et résumés pédagogiques générés avec Groq.
 
 Chaque script doit terminer sans erreur avant de passer au suivant.
+
+## Comptes responsables des clubs
+
+Après le script 16, les adresses suivantes sont automatiquement associées à
+leur espace :
+
+- `innoverse_aei@enaid.ump.ma`
+- `nurlai_aei@enaid.ump.ma`
+- `riot_aei@enaid.ump.ma`
+- `secora_aei@enaid.ump.ma`
+- `techrise_aei@enaid.ump.ma`
+- `enactus_aei@enaid.ump.ma`
+- `alataa_aei@enaid.ump.ma`
+- `aei_eniadb@enaid.ump.ma`
+
+Pour les créer en une seule fois, récupérer la clé `service_role` dans Supabase,
+l’ajouter uniquement au fichier local `.env.local`, puis exécuter :
+
+```powershell
+npm run provision:clubs
+```
+
+```env
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+```
+
+Le script génère un mot de passe temporaire différent et robuste pour chaque
+nouveau compte, puis les affiche une seule fois dans le terminal.
+
+La clé `service_role` ne doit jamais être ajoutée à Vercel avec le préfixe
+`VITE_`, exposée dans le navigateur ou envoyée dans Git. Chaque responsable doit
+remplacer le mot de passe temporaire lors de la remise de son compte.
 
 ## Création du premier administrateur
 

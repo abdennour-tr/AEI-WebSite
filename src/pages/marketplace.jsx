@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, ShoppingCart, ChevronLeft, ChevronRight, Heart, LoaderCircle, MapPin, PackageOpen, Plus, X } from "lucide-react";
+import { Search, ShoppingCart, ChevronLeft, ChevronRight, Heart, LoaderCircle, MapPin, PackageOpen, PhoneCall, Plus, X } from "lucide-react";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import fallbackProducts from "../data/Produits";
@@ -19,6 +19,7 @@ const emptyProductForm = {
   city: "Berkane",
   item_condition: "Très bon état",
   price: "",
+  contact_phone: "",
 };
 
 export default function MarketPlacePage() {
@@ -44,6 +45,7 @@ export default function MarketPlacePage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [publishNotice, setPublishNotice] = useState("");
   const [productFiles, setProductFiles] = useState([]);
   const [form, setForm] = useState(emptyProductForm);
 
@@ -91,6 +93,7 @@ export default function MarketPlacePage() {
     setForm(emptyProductForm);
     setProductFiles([]);
     setFormError("");
+    setPublishNotice("");
     setPublishOpen(true);
   };
 
@@ -100,18 +103,19 @@ export default function MarketPlacePage() {
     setFormError("");
     try {
       const imageUrls = await uploadPublicImages("product-images", productFiles);
-      const created = await marketplaceApi.create({
+      await marketplaceApi.create({
         title: form.title.trim(),
         description: form.description.trim() || null,
         category: form.category,
         city: form.city.trim(),
         item_condition: form.item_condition,
         price: Number(form.price),
+        contact_phone: form.contact_phone.trim(),
         image_urls: imageUrls,
         status: "active",
       });
-      setData((items) => [created, ...items]);
       setPublishOpen(false);
+      setPublishNotice("Votre produit a été transmis à l’administration. Il apparaîtra dans le Marketplace après validation.");
       setPage(1);
     } catch (submitError) {
       setFormError(submitError.message || "Impossible de publier le produit.");
@@ -144,6 +148,13 @@ export default function MarketPlacePage() {
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
           {favoriteError}
         </p>
+      )}
+
+      {publishNotice && (
+        <div className="flex items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold leading-6 text-emerald-800">
+          <span>{publishNotice}</span>
+          <button type="button" onClick={() => setPublishNotice("")} className="rounded-lg p-1 text-emerald-700 hover:bg-emerald-100" aria-label="Fermer le message"><X className="h-4 w-4" /></button>
+        </div>
       )}
 
       {/* FILTRES */}
@@ -324,6 +335,13 @@ export default function MarketPlacePage() {
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">État</p><p className="mt-1 font-bold text-slate-800">{selectedProduct.etat}</p></div>
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Ville</p><p className="mt-1 flex items-center gap-1 font-bold text-slate-800"><MapPin className="h-4 w-4 text-sky-600" />{selectedProduct.ville}</p></div>
               </div>
+              {selectedProduct.contact_phone ? (
+                <a href={`tel:${selectedProduct.contact_phone.replace(/[^\d+]/g, "")}`} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-black text-white transition hover:bg-emerald-700">
+                  <PhoneCall className="h-5 w-5" /> Appeler le vendeur · {selectedProduct.contact_phone}
+                </a>
+              ) : (
+                <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-center text-sm font-semibold text-slate-500">Numéro de contact non renseigné.</p>
+              )}
               <ReportButton contentType="product" contentId={selectedProduct.id} title={selectedProduct.titre} className="portal-secondary-button mt-6 w-full" />
             </div>
           </section>
@@ -343,6 +361,7 @@ export default function MarketPlacePage() {
               <label className="text-sm font-bold text-slate-700">Ville<input required className="portal-input mt-2" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} /></label>
               <label className="text-sm font-bold text-slate-700">État<select className="portal-select mt-2" value={form.item_condition} onChange={(event) => setForm({ ...form, item_condition: event.target.value })}><option>Neuf</option><option>Comme neuf</option><option>Très bon état</option><option>Bon état</option><option>État correct</option></select></label>
               <label className="text-sm font-bold text-slate-700">Prix (DH)<input required type="number" min="0" step="1" className="portal-input mt-2" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} /></label>
+              <label className="sm:col-span-2 text-sm font-bold text-slate-700">Numéro de téléphone<input required type="tel" autoComplete="tel" minLength={8} maxLength={24} pattern="[0-9+ ()-]{8,24}" className="portal-input mt-2" value={form.contact_phone} onChange={(event) => setForm({ ...form, contact_phone: event.target.value })} placeholder="+212 6 12 34 56 78" /><span className="mt-1 block text-xs font-normal text-slate-500">Visible uniquement par les membres connectés afin qu’ils puissent vous appeler.</span></label>
               <div className="sm:col-span-2"><ImageUploadField files={productFiles} onFilesChange={setProductFiles} maxFiles={6} label="Photos du produit" /></div>
               {formError && <p className="sm:col-span-2 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{formError}</p>}
               <div className="sm:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" className="portal-secondary-button" onClick={() => setPublishOpen(false)}>Annuler</button><button type="submit" className="portal-primary-button" disabled={saving}>{saving && <LoaderCircle className="h-4 w-4 animate-spin" />}Publier le produit</button></div>

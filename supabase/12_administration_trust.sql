@@ -158,12 +158,12 @@ grant update (title,description,tech_stack,repository_url,demo_url,cover_url,sta
 on public.student_projects to authenticated;
 
 revoke insert, update on table public.housing_listings from authenticated;
-grant insert (owner_id,title,description,city,property_type,monthly_price,available_from,image_urls,status) on public.housing_listings to authenticated;
-grant update (title,description,city,property_type,monthly_price,available_from,image_urls,status,updated_at) on public.housing_listings to authenticated;
+grant insert (owner_id,title,description,city,property_type,monthly_price,available_from,contact_phone,image_urls,status) on public.housing_listings to authenticated;
+grant update (title,description,city,property_type,monthly_price,available_from,contact_phone,image_urls,status,updated_at) on public.housing_listings to authenticated;
 
 revoke insert, update on table public.marketplace_products from authenticated;
-grant insert (seller_id,title,description,category,city,item_condition,price,image_urls,status) on public.marketplace_products to authenticated;
-grant update (title,description,category,city,item_condition,price,image_urls,status,updated_at) on public.marketplace_products to authenticated;
+grant insert (seller_id,title,description,category,city,item_condition,price,contact_phone,image_urls,status) on public.marketplace_products to authenticated;
+grant update (title,description,category,city,item_condition,price,contact_phone,image_urls,status,updated_at) on public.marketplace_products to authenticated;
 
 revoke insert, update on table public.advertisements from authenticated;
 grant insert (created_by,title,description,image_url,target_url,starts_at,ends_at,status) on public.advertisements to authenticated;

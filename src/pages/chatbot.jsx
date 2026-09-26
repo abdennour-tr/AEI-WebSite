@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   ArrowDown,
+  ArrowUpRight,
   Bot,
   CalendarDays,
+  Check,
+  Copy,
   Home,
   LoaderCircle,
   MessageCircleQuestion,
   Send,
+  ShieldAlert,
   ShoppingBag,
   Sparkles,
   Trash2,
@@ -22,6 +27,7 @@ const welcomeMessage = {
   text: "Bonjour ! Je réponds uniquement à partir des informations du portail AEI ENIAD : clubs, cours, événements, marketplace, colocations, projets et opportunités. Que souhaitez-vous trouver ?",
   sender: "bot",
   links: [],
+  createdAt: Date.now(),
 };
 
 const suggestions = [
@@ -64,6 +70,72 @@ function buildApiMessages(messages, nextQuestion) {
   ];
 }
 
+function AssistantAnswer({ text }) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const blocks = [];
+  let list = [];
+  let ordered = false;
+
+  const flushList = () => {
+    if (!list.length) return;
+    blocks.push({ type: ordered ? "ordered-list" : "list", items: list });
+    list = [];
+  };
+
+  lines.forEach((line) => {
+    const numberedMatch = line.match(/^\d+[.)]\s+(.+)$/);
+    const bulletMatch = line.match(/^[•\-–]\s+(.+)$/);
+    if (numberedMatch || bulletMatch) {
+      const nextOrdered = Boolean(numberedMatch);
+      if (list.length && ordered !== nextOrdered) flushList();
+      ordered = nextOrdered;
+      list.push((numberedMatch || bulletMatch)[1]);
+      return;
+    }
+    flushList();
+    blocks.push({
+      type: line.endsWith(":") && line.length < 90 ? "heading" : "paragraph",
+      text: line,
+    });
+  });
+  flushList();
+
+  return (
+    <div className="space-y-3 text-[0.94rem] leading-7 text-slate-700">
+      {blocks.map((block, index) => {
+        if (block.type === "list" || block.type === "ordered-list") {
+          const ListTag = block.type === "ordered-list" ? "ol" : "ul";
+          return (
+            <ListTag
+              key={`${block.type}-${index}`}
+              className={`space-y-2 pl-5 ${block.type === "ordered-list" ? "list-decimal" : "list-disc marker:text-sky-500"}`}
+            >
+              {block.items.map((item, itemIndex) => (
+                <li key={`${item}-${itemIndex}`} className="pl-1">{item}</li>
+              ))}
+            </ListTag>
+          );
+        }
+        if (block.type === "heading") {
+          return <p key={`${block.type}-${index}`} className="font-black text-slate-950">{block.text}</p>;
+        }
+        return <p key={`${block.type}-${index}`}>{block.text}</p>;
+      })}
+    </div>
+  );
+}
+
+function formatMessageTime(value) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value || Date.now()));
+}
+
 export default function ChatbotPage() {
   const { session } = useAuth();
   const [messages, setMessages] = useState([welcomeMessage]);
@@ -72,6 +144,7 @@ export default function ChatbotPage() {
   const messagesContainerRef = useRef(null);
   const shouldFollowConversationRef = useRef(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState("");
 
   const scrollConversationToBottom = (behavior = "smooth") => {
     const container = messagesContainerRef.current;
@@ -108,6 +181,7 @@ export default function ChatbotPage() {
       text: question,
       sender: "user",
       links: [],
+      createdAt: Date.now(),
     };
     const apiMessages = buildApiMessages(messages, question);
 
@@ -138,6 +212,7 @@ export default function ChatbotPage() {
           sender: "bot",
           links: payload.links || [],
           outside: payload.scope === "outside",
+          createdAt: Date.now(),
         },
       ]);
     } catch (error) {
@@ -149,6 +224,7 @@ export default function ChatbotPage() {
           sender: "bot",
           links: [],
           error: true,
+          createdAt: Date.now(),
         },
       ]);
     } finally {
@@ -167,6 +243,16 @@ export default function ChatbotPage() {
     setShowScrollButton(false);
     setMessages([welcomeMessage]);
     setInput("");
+  };
+
+  const copyAnswer = async (message) => {
+    try {
+      await navigator.clipboard.writeText(message.text);
+      setCopiedMessageId(message.id);
+      window.setTimeout(() => setCopiedMessageId(""), 1800);
+    } catch {
+      setCopiedMessageId("");
+    }
   };
 
   return (
@@ -209,54 +295,99 @@ export default function ChatbotPage() {
             <div
               ref={messagesContainerRef}
               onScroll={handleConversationScroll}
-              className="h-[500px] space-y-4 overflow-y-auto bg-slate-50/70 p-4 pb-20 overscroll-contain sm:p-6 sm:pb-20"
+              className="h-[540px] space-y-6 overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.08),_transparent_34%),linear-gradient(to_bottom,_#f8fafc,_#f1f5f9)] p-4 pb-20 overscroll-contain sm:p-6 sm:pb-20"
               aria-live="polite"
             >
-              {messages.map((message) => (
-              <Motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex ${
-                  message.sender === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm sm:max-w-[78%] ${
-                    message.sender === "user"
-                      ? "rounded-br-md bg-sky-600 text-white"
-                      : message.error
-                        ? "rounded-bl-md border border-rose-200 bg-rose-50 text-rose-800"
-                        : message.outside
-                          ? "rounded-bl-md border border-amber-200 bg-amber-50 text-amber-950"
-                          : "rounded-bl-md border border-slate-200 bg-white text-slate-700"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{message.text}</p>
-                  {message.links?.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200/80 pt-3">
-                      {message.links.map((link) => (
-                        <a
-                          key={`${message.id}-${link.url}`}
-                          href={link.url}
-                          target={link.url.startsWith("http") ? "_blank" : undefined}
-                          rel={link.url.startsWith("http") ? "noreferrer" : undefined}
-                          className="inline-flex items-center rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-800 transition hover:bg-sky-100"
-                        >
-                          {link.label}
-                        </a>
-                      ))}
+              {messages.map((message) => {
+                const isUser = message.sender === "user";
+                return (
+                  <Motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex items-start gap-3 ${isUser ? "justify-end" : "justify-start"}`}
+                  >
+                    {!isUser && (
+                      <span className={`mt-6 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm ${message.error ? "border-rose-200 bg-rose-50 text-rose-700" : message.outside ? "border-amber-200 bg-amber-50 text-amber-700" : "border-sky-200 bg-white text-sky-700"}`}>
+                        {message.error ? <AlertCircle className="h-4 w-4" /> : message.outside ? <ShieldAlert className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                      </span>
+                    )}
+
+                    <div className={`min-w-0 ${isUser ? "max-w-[88%] sm:max-w-[72%]" : "max-w-[calc(100%-3rem)] sm:max-w-[86%]"}`}>
+                      <div className={`mb-1.5 flex items-center gap-2 px-1 text-[11px] font-semibold ${isUser ? "justify-end text-slate-400" : "text-slate-500"}`}>
+                        <span>{isUser ? "Vous" : "Assistant AEI"}</span>
+                        <span aria-hidden="true">•</span>
+                        <time dateTime={new Date(message.createdAt || Date.now()).toISOString()}>{formatMessageTime(message.createdAt)}</time>
+                      </div>
+
+                      {isUser ? (
+                        <div className="rounded-2xl rounded-tr-md bg-gradient-to-br from-sky-600 to-blue-700 px-4 py-3.5 text-sm font-medium leading-6 text-white shadow-md shadow-sky-900/10">
+                          <p className="whitespace-pre-wrap">{message.text}</p>
+                        </div>
+                      ) : (
+                        <article className={`overflow-hidden rounded-2xl rounded-tl-md border bg-white shadow-sm ${message.error ? "border-rose-200" : message.outside ? "border-amber-200" : "border-slate-200"}`}>
+                          <div className={`flex items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-5 ${message.error ? "border-rose-100 bg-rose-50/80" : message.outside ? "border-amber-100 bg-amber-50/80" : "border-slate-100 bg-slate-50/70"}`}>
+                            <span className={`inline-flex items-center gap-2 text-xs font-bold ${message.error ? "text-rose-700" : message.outside ? "text-amber-800" : "text-emerald-700"}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${message.error ? "bg-rose-500" : message.outside ? "bg-amber-500" : "bg-emerald-500"}`} />
+                              {message.error ? "Réponse indisponible" : message.outside ? "Demande hors périmètre" : "Réponse basée sur le portail"}
+                            </span>
+                            {!message.error && (
+                              <button
+                                type="button"
+                                onClick={() => copyAnswer(message)}
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-slate-500 transition hover:bg-white hover:text-sky-700"
+                                aria-label="Copier la réponse"
+                              >
+                                {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                                <span className="hidden sm:inline">{copiedMessageId === message.id ? "Copié" : "Copier"}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          <div className={`px-4 py-4 sm:px-5 ${message.error ? "text-rose-800" : message.outside ? "text-amber-950" : ""}`}>
+                            {message.error || message.outside
+                              ? <p className="whitespace-pre-wrap text-sm leading-7">{message.text}</p>
+                              : <AssistantAnswer text={message.text} />}
+
+                            {message.links?.length > 0 && (
+                              <div className="mt-5 border-t border-slate-100 pt-4">
+                                <p className="mb-2.5 text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Ressources utiles</p>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  {message.links.map((link) => {
+                                    const external = link.url.startsWith("http");
+                                    return (
+                                      <a
+                                        key={`${message.id}-${link.url}`}
+                                        href={link.url}
+                                        target={external ? "_blank" : undefined}
+                                        rel={external ? "noreferrer" : undefined}
+                                        className="group flex items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50/70 px-3.5 py-3 text-sm font-bold text-sky-900 transition hover:border-sky-300 hover:bg-sky-100"
+                                      >
+                                        <span className="min-w-0 truncate">{link.label}</span>
+                                        <ArrowUpRight className="h-4 w-4 shrink-0 text-sky-600 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </article>
+                      )}
                     </div>
-                  )}
-                </div>
-              </Motion.div>
-              ))}
+                  </Motion.div>
+                );
+              })}
 
               {sending && (
-                <div className="flex justify-start">
-                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
-                    <LoaderCircle className="h-4 w-4 animate-spin text-sky-600" />
-                    Recherche dans le portail…
+                <div className="flex items-start gap-3">
+                  <span className="mt-6 flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-white text-sky-700 shadow-sm"><Sparkles className="h-4 w-4" /></span>
+                  <div>
+                    <div className="mb-1.5 px-1 text-[11px] font-semibold text-slate-500">Assistant AEI • analyse en cours</div>
+                    <div className="flex items-center gap-3 rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-500 shadow-sm">
+                      <span className="flex gap-1" aria-hidden="true"><span className="h-2 w-2 animate-bounce rounded-full bg-sky-500 [animation-delay:-0.3s]" /><span className="h-2 w-2 animate-bounce rounded-full bg-sky-500 [animation-delay:-0.15s]" /><span className="h-2 w-2 animate-bounce rounded-full bg-sky-500" /></span>
+                      Recherche dans les données du portail…
+                    </div>
                   </div>
                 </div>
               )}

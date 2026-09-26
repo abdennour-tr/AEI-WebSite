@@ -97,7 +97,7 @@ export default function ClubAdminLoginPage() {
             <form onSubmit={submit} className="mt-7 space-y-5">
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-700">Adresse e-mail professionnelle</span>
-                <span className="relative block"><Mail className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" /><input type="email" className="portal-input pl-11" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="responsable@club.ma" autoComplete="email" required /></span>
+                <span className="relative block"><Mail className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" /><input type="email" className="portal-input pl-11" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nomclub_aei@enaid.ump.ma" autoComplete="email" required /></span>
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-700">Mot de passe</span>

@@ -120,15 +120,27 @@ const mapCourse = (row) => ({
   niveau: row.level,
   categorie: row.category,
   pdf: row.pdf_url,
+  summary: row.ai_summary || "",
+  hasSummary: row.summary_status === "ready" && Boolean(row.ai_summary),
 });
+
+async function mapCourseWithDownload(row) {
+  const mapped = mapCourse(row);
+  if (!row.file_path) return mapped;
+  const { data, error } = await client()
+    .storage
+    .from("course-files")
+    .createSignedUrl(row.file_path, 60 * 60);
+  return { ...mapped, pdf: error ? mapped.pdf : data.signedUrl };
+}
 
 const mapHousing = (row) => ({
   ...row,
   titre: row.title,
   nom: "Membre AEI",
-  avatar: "",
-  cover: row.image_urls?.[0] || "",
-  image: row.image_urls?.[0] || "",
+  avatar: null,
+  cover: row.image_urls?.[0] || null,
+  image: row.image_urls?.[0] || null,
   ville: row.city,
   prix: row.monthly_price,
   desc: row.description,
@@ -140,8 +152,8 @@ const mapProduct = (row) => ({
   ...row,
   titre: row.title,
   prix: row.price,
-  img: row.image_urls?.[0] || "",
-  image: row.image_urls?.[0] || "",
+  img: row.image_urls?.[0] || null,
+  image: row.image_urls?.[0] || null,
   categorie: row.category,
   etat: row.item_condition,
   ville: row.city,
@@ -155,25 +167,25 @@ export const coursesApi = {
       listFavoriteIds("course_favorites", "course_id"),
     ]);
     const favorites = new Set(favoriteIds);
-    return rows.map((row) => ({
-      ...mapCourse(row),
+    return Promise.all(rows.map(async (row) => ({
+      ...(await mapCourseWithDownload(row)),
       isFavorite: favorites.has(row.id),
-    }));
+    })));
   },
-  listFavorites: async () =>
-    unwrap(
+  listFavorites: async () => {
+    const rows = await unwrap(
       client()
         .from("course_favorites")
         .select("created_at, course:courses(*)")
         .order("created_at", { ascending: false })
-    ).then((rows) =>
-      rows
-        .filter((row) => row.course)
-        .map((row) => ({
-          ...mapCourse(row.course),
-          favoriteCreatedAt: row.created_at,
-        }))
-    ),
+    );
+    return Promise.all(
+      rows.filter((row) => row.course).map(async (row) => ({
+        ...(await mapCourseWithDownload(row.course)),
+        favoriteCreatedAt: row.created_at,
+      }))
+    );
+  },
   setFavorite: (courseId, favorite) =>
     setFavorite("course_favorites", "course_id", courseId, favorite),
   create: (payload) => createRecord("courses", payload),
@@ -189,6 +201,7 @@ export const housingApi = {
           .from("housing_listings")
           .select("*")
           .eq("status", "active")
+          .eq("moderation_status", "approved")
           .order("created_at", { ascending: false })
       ),
       listFavoriteIds("housing_favorites", "housing_id").catch(() => []),
@@ -203,7 +216,9 @@ export const housingApi = {
     unwrap(
       client()
         .from("housing_favorites")
-        .select("created_at, housing:housing_listings(*)")
+        .select("created_at, housing:housing_listings!inner(*)")
+        .eq("housing.status", "active")
+        .eq("housing.moderation_status", "approved")
         .order("created_at", { ascending: false })
     ).then((rows) =>
       rows
@@ -231,6 +246,7 @@ export const marketplaceApi = {
           .from("marketplace_products")
           .select("*")
           .eq("status", "active")
+          .eq("moderation_status", "approved")
           .order("created_at", { ascending: false })
       ),
       listFavoriteIds("marketplace_product_favorites", "product_id").catch(() => []),
@@ -245,7 +261,9 @@ export const marketplaceApi = {
     unwrap(
       client()
         .from("marketplace_product_favorites")
-        .select("created_at, product:marketplace_products(*)")
+        .select("created_at, product:marketplace_products!inner(*)")
+        .eq("product.status", "active")
+        .eq("product.moderation_status", "approved")
         .order("created_at", { ascending: false })
     ).then((rows) =>
       rows
@@ -262,7 +280,8 @@ export const marketplaceApi = {
       productId,
       favorite
     ),
-  listMine: () => listOwned("marketplace_products", "seller_id"),
+  listMine: async () =>
+    (await listOwned("marketplace_products", "seller_id")).map(mapProduct),
   create: async (payload) => mapProduct(await createRecord("marketplace_products", payload)),
   update: async (id, payload) => mapProduct(await updateRecord("marketplace_products", id, payload)),
   remove: (id) => deleteRecord("marketplace_products", id),

@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import portalWorker from "./server/worker.js";
 import { handleReportNotification } from "./api/report-notification.js";
+import { handleCourseSummary } from "./api/course-summary.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +56,27 @@ function portalApiDevPlugin(environment) {
         webResponse.headers.forEach((value, name) => response.setHeader(name, value));
         response.end(Buffer.from(await webResponse.arrayBuffer()));
       });
+
+      server.middlewares.use("/api/course-summary", async (request, response) => {
+        const chunks = [];
+        for await (const chunk of request) chunks.push(chunk);
+
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(request.headers)) {
+          if (Array.isArray(value)) value.forEach((item) => headers.append(name, item));
+          else if (value !== undefined) headers.set(name, value);
+        }
+
+        const webRequest = new Request("http://localhost/api/course-summary", {
+          method: request.method,
+          headers,
+          body: chunks.length ? Buffer.concat(chunks) : undefined,
+        });
+        const webResponse = await handleCourseSummary(webRequest, environment);
+        response.statusCode = webResponse.status;
+        webResponse.headers.forEach((value, name) => response.setHeader(name, value));
+        response.end(Buffer.from(await webResponse.arrayBuffer()));
+      });
     },
   };
 }
@@ -67,6 +89,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       portalApiDevPlugin({
         GROQ_API_KEY: process.env.GROQ_API_KEY || localEnvironment.GROQ_API_KEY,
+        GROQ_MODEL: process.env.GROQ_MODEL || localEnvironment.GROQ_MODEL,
         SUPABASE_URL:
           process.env.SUPABASE_URL || localEnvironment.VITE_SUPABASE_URL,
         SUPABASE_ANON_KEY:

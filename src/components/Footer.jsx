@@ -1,5 +1,5 @@
 import React from "react";
-import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
+import { Instagram, Linkedin } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "../assets/AEI.png";
 
@@ -24,6 +24,19 @@ const legalLinks = [
   { label: "Confidentialité", to: "/confidentialite" },
   { label: "Conditions d’utilisation", to: "/conditions-utilisation" },
   { label: "Règles de la communauté", to: "/regles-communaute" },
+];
+
+const socialLinks = [
+  {
+    label: "Instagram de l’AEI ENIAD",
+    href: "https://www.instagram.com/aei.eniadb?stkn=MTJkbzZmNGNvY3RtcQ==",
+    icon: Instagram,
+  },
+  {
+    label: "LinkedIn de l’AEI ENIAD",
+    href: "https://www.linkedin.com/company/ade-eniad/",
+    icon: Linkedin,
+  },
 ];
 
 export default function Footer() {
@@ -84,15 +97,18 @@ export default function Footer() {
             Retrouvez les actualités et les temps forts de la communauté.
           </p>
           <div className="flex gap-4 mt-2">
-            {[Facebook, Twitter, Instagram, Linkedin].map((Icon, index) => (
-              <button
-                key={index}
-                type="button"
-                aria-label="Réseau social AEI"
+            {socialLinks.map(({ label, href, icon: Icon }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={label}
+                title={label}
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-slate-400 transition hover:border-sky-400/50 hover:bg-sky-400/10 hover:text-sky-300"
               >
-                <Icon className="h-4 w-4" />
-              </button>
+                {React.createElement(Icon, { className: "h-4 w-4" })}
+              </a>
             ))}
           </div>
         </div>

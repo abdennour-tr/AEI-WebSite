@@ -11,6 +11,16 @@ async function unwrap(query) {
   return { data, count };
 }
 
+async function optionalRows(query) {
+  try {
+    const { data } = await unwrap(query);
+    return data || [];
+  } catch (error) {
+    if (["42P01", "42703", "PGRST204", "PGRST205"].includes(error?.code)) return [];
+    throw error;
+  }
+}
+
 async function currentUser() {
   const {
     data: { user },
@@ -35,11 +45,18 @@ export const clubAdminApi = {
   },
 
   async getDashboard(clubId) {
-    const [events, announcements, applications, members, views, registrations, attendance] =
+    const [clubEvents, agendaEvents, announcements, board, applications, members, views, registrations, attendance] =
       await Promise.all([
         unwrap(
           client()
             .from("club_events")
+            .select("*")
+            .eq("club_id", clubId)
+            .order("starts_at", { ascending: true })
+        ),
+        optionalRows(
+          client()
+            .from("events")
             .select("*")
             .eq("club_id", clubId)
             .order("starts_at", { ascending: true })
@@ -50,6 +67,14 @@ export const clubAdminApi = {
             .select("*")
             .eq("club_id", clubId)
             .order("created_at", { ascending: false })
+        ),
+        optionalRows(
+          client()
+            .from("club_board_members")
+            .select("*")
+            .eq("club_id", clubId)
+            .order("display_order", { ascending: true })
+            .order("created_at", { ascending: true })
         ),
         unwrap(
           client()
@@ -103,8 +128,16 @@ export const clubAdminApi = {
     );
 
     return {
-      events: events.data,
+      events: [
+        ...clubEvents.data.map((event) => ({ ...event, source: "club" })),
+        ...agendaEvents.map((event) => ({
+          ...event,
+          event_type: event.tag || "Événement",
+          source: "agenda",
+        })),
+      ].sort((left, right) => new Date(left.starts_at) - new Date(right.starts_at)),
       announcements: announcements.data,
+      board,
       applications: applications.data.map((application) => ({
         ...application,
         applicant: profileMap.get(application.applicant_id) || null,
@@ -142,20 +175,69 @@ export const clubAdminApi = {
     return data;
   },
 
-  async setEventStatus(eventId, status) {
+  async updateEvent(event, payload) {
+    const table = event.source === "agenda" ? "events" : "club_events";
+    const normalizedPayload =
+      table === "events"
+        ? {
+            title: payload.title,
+            description: payload.description,
+            tag: payload.event_type,
+            location: payload.location,
+            starts_at: payload.starts_at,
+            capacity: payload.capacity,
+            status: payload.status,
+          }
+        : payload;
+    const { data } = await unwrap(
+      client().from(table).update(normalizedPayload).eq("id", event.id).select().single()
+    );
+    return data;
+  },
+
+  async setEventStatus(event, status) {
+    const table = event.source === "agenda" ? "events" : "club_events";
     const { data } = await unwrap(
       client()
-        .from("club_events")
+        .from(table)
         .update({ status })
-        .eq("id", eventId)
+        .eq("id", event.id)
         .select()
         .single()
     );
     return data;
   },
 
-  async removeEvent(eventId) {
-    await unwrap(client().from("club_events").delete().eq("id", eventId));
+  async removeEvent(event) {
+    const table = event.source === "agenda" ? "events" : "club_events";
+    await unwrap(client().from(table).delete().eq("id", event.id));
+  },
+
+  async createBoardMember(clubId, payload) {
+    const { data } = await unwrap(
+      client()
+        .from("club_board_members")
+        .insert({ ...payload, club_id: clubId })
+        .select()
+        .single()
+    );
+    return data;
+  },
+
+  async updateBoardMember(memberId, payload) {
+    const { data } = await unwrap(
+      client()
+        .from("club_board_members")
+        .update(payload)
+        .eq("id", memberId)
+        .select()
+        .single()
+    );
+    return data;
+  },
+
+  async removeBoardMember(memberId) {
+    await unwrap(client().from("club_board_members").delete().eq("id", memberId));
   },
 
   async createAnnouncement(clubId, payload) {
@@ -207,7 +289,7 @@ export const clubAdminApi = {
   },
 
   async getPublicContent(clubId) {
-    const [profile, events, announcements] = await Promise.all([
+    const [profile, agendaEvents, clubEvents, announcements, board] = await Promise.all([
       unwrap(
         client()
           .from("club_profiles")
@@ -215,6 +297,15 @@ export const clubAdminApi = {
           .eq("id", clubId)
           .eq("status", "active")
           .maybeSingle()
+      ),
+      optionalRows(
+        client()
+          .from("events")
+          .select("*")
+          .eq("club_id", clubId)
+          .eq("status", "published")
+          .gte("starts_at", new Date().toISOString())
+          .order("starts_at", { ascending: true })
       ),
       unwrap(
         client()
@@ -234,11 +325,23 @@ export const clubAdminApi = {
           .order("published_at", { ascending: false })
           .limit(5)
       ),
+      optionalRows(
+        client()
+          .from("club_board_members")
+          .select("*")
+          .eq("club_id", clubId)
+          .eq("active", true)
+          .order("display_order", { ascending: true })
+      ),
     ]);
     return {
       profile: profile.data,
-      events: events.data,
+      events: [
+        ...clubEvents.data,
+        ...agendaEvents.map((event) => ({ ...event, event_type: event.tag || "Événement" })),
+      ].sort((left, right) => new Date(left.starts_at) - new Date(right.starts_at)),
       announcements: announcements.data,
+      board,
     };
   },
 

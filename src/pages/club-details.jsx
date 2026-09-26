@@ -154,6 +154,20 @@ export default function ClubDetailsPage() {
       objectives: profile.objectives?.length ? profile.objectives : staticClub.objectives,
       contactUrl: profile.contact_url || staticClub.contactUrl,
       contactLabel: profile.contact_label || staticClub.contactLabel,
+      board: managedContent.board?.length
+        ? managedContent.board.map((member) => ({
+            id: member.id,
+            name: member.full_name,
+            role: member.role_title,
+            photoUrl: member.photo_url,
+            initials: member.full_name
+              .split(" ")
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase(),
+          }))
+        : staticClub.board,
       socials: [
         {
           label: "LinkedIn",
@@ -435,8 +449,8 @@ export default function ClubDetailsPage() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {club.board.map((member) => (
-              <article key={member.name} className="portal-panel flex items-center gap-4">
-                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.accent} text-sm font-bold text-white shadow-sm`}>{member.initials}</span>
+              <article key={member.id || member.name} className="portal-panel flex items-center gap-4">
+                {member.photoUrl ? <img src={member.photoUrl} alt={member.name} className="h-12 w-12 shrink-0 rounded-2xl object-cover shadow-sm" /> : <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.accent} text-sm font-bold text-white shadow-sm`}>{member.initials}</span>}
                 <div><h3 className="font-bold text-slate-950">{member.name}</h3><p className="mt-1 text-sm text-slate-500">{member.role}</p></div>
               </article>
             ))}

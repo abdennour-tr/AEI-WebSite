@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Building2, CalendarDays, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, Plus, X } from "lucide-react";
+import { Building2, CalendarDays, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, PhoneCall, Plus, UserRound, X } from "lucide-react";
 import fallbackAnnonces from "@/data/Colocation";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
@@ -184,11 +184,11 @@ export default function ColocationPage() {
 
             <div className="p-6">
               <div className="flex items-center gap-4 mb-4">
-                <img
-                  src={annonce.avatar}
-                  className="w-12 h-12 rounded-full border border-gray-300 shadow-sm"
-                  alt="avatar"
-                />
+                {annonce.avatar ? (
+                  <img src={annonce.avatar} className="h-12 w-12 rounded-full border border-gray-300 object-cover shadow-sm" alt={`Photo de ${annonce.nom}`} />
+                ) : (
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-sky-100 bg-sky-50 text-sky-700"><UserRound className="h-5 w-5" /></span>
+                )}
                 <div>
                   <h2 className="text-base font-bold text-slate-950">
                     {annonce.nom}
@@ -279,6 +279,13 @@ export default function ColocationPage() {
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Emplacement</p><p className="mt-1 flex items-center gap-1 font-bold text-slate-800"><MapPin className="h-4 w-4 text-sky-600" />{selectedAnnonce.ville}</p></div>
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Disponibilité</p><p className="mt-1 flex items-center gap-1 font-bold text-slate-800"><CalendarDays className="h-4 w-4 text-sky-600" />{selectedAnnonce.available_from ? new Date(selectedAnnonce.available_from).toLocaleDateString("fr-FR") : "À confirmer"}</p></div>
               </div>
+              {selectedAnnonce.contact_phone ? (
+                <a href={`tel:${selectedAnnonce.contact_phone.replace(/[^\d+]/g, "")}`} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-black text-white transition hover:bg-emerald-700">
+                  <PhoneCall className="h-5 w-5" /> Appeler l’annonceur · {selectedAnnonce.contact_phone}
+                </a>
+              ) : (
+                <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-center text-sm font-semibold text-slate-500">Numéro de contact non renseigné.</p>
+              )}
               <ReportButton contentType="housing" contentId={selectedAnnonce.id} title={selectedAnnonce.titre} className="portal-secondary-button mt-6 w-full" />
             </div>
           </section>

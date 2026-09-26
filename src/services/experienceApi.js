@@ -51,19 +51,19 @@ export async function searchPortal(query) {
         supabase.from("courses").select("id,title,category").eq("status", "published").ilike("title", term).limit(4)
       ),
       safeQuery(
-        supabase.from("student_projects").select("id,title,field_of_study").eq("status", "published").ilike("title", term).limit(4)
+        supabase.from("student_projects").select("id,title,field_of_study").eq("status", "published").eq("moderation_status", "approved").ilike("title", term).limit(4)
       ),
       safeQuery(
         supabase.from("events").select("id,title,location").eq("status", "published").ilike("title", term).limit(4)
       ),
       safeQuery(
-        supabase.from("marketplace_products").select("id,title,category").eq("status", "active").ilike("title", term).limit(4)
+        supabase.from("marketplace_products").select("id,title,category").eq("status", "active").eq("moderation_status", "approved").ilike("title", term).limit(4)
       ),
       safeQuery(
-        supabase.from("housing_listings").select("id,title,city").eq("status", "active").ilike("title", term).limit(4)
+        supabase.from("housing_listings").select("id,title,city").eq("status", "active").eq("moderation_status", "approved").ilike("title", term).limit(4)
       ),
       safeQuery(
-        supabase.from("advertisements").select("id,title,description").eq("status", "published").ilike("title", term).limit(4)
+        supabase.from("advertisements").select("id,title,description").eq("status", "published").eq("moderation_status", "approved").ilike("title", term).limit(4)
       ),
     ]);
 

@@ -21,9 +21,11 @@ export default function ImageUploadField({
     return () => next.forEach((preview) => URL.revokeObjectURL(preview.url));
   }, [files]);
 
+  const validExistingUrls = existingUrls.filter(Boolean);
+
   const chooseFiles = (event) => {
     try {
-      const remaining = Math.max(0, maxFiles - existingUrls.length);
+      const remaining = Math.max(0, maxFiles - validExistingUrls.length);
       const selected = validateImageFiles(event.target.files, remaining);
       onFilesChange(selected);
       setError("");
@@ -35,8 +37,8 @@ export default function ImageUploadField({
   };
 
   const removeFile = (index) => onFilesChange(files.filter((_, itemIndex) => itemIndex !== index));
-  const removeExisting = (index) => onExistingUrlsChange(existingUrls.filter((_, itemIndex) => itemIndex !== index));
-  const total = existingUrls.length + files.length;
+  const removeExisting = (index) => onExistingUrlsChange(validExistingUrls.filter((_, itemIndex) => itemIndex !== index));
+  const total = validExistingUrls.length + files.length;
 
   return (
     <div className="space-y-3">
@@ -71,9 +73,9 @@ export default function ImageUploadField({
 
       {error && <p className="text-sm font-semibold text-rose-700">{error}</p>}
 
-      {(existingUrls.length > 0 || previews.length > 0) && (
+      {(validExistingUrls.length > 0 || previews.length > 0) && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {existingUrls.map((url, index) => (
+          {validExistingUrls.map((url, index) => (
             <div key={url} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
               <img src={url} alt={`Image enregistrée ${index + 1}`} className="h-28 w-full object-cover" />
               <button type="button" onClick={() => removeExisting(index)} className="absolute right-2 top-2 rounded-lg bg-white/90 p-2 text-rose-600 shadow" aria-label="Retirer cette image">
