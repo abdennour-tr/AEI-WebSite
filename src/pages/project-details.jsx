@@ -20,6 +20,7 @@ import fallbackProjects from "@/data/my-projects";
 import { studentProjectsApi } from "@/services/projectsApi";
 import ShareButton from "@/components/ShareButton";
 import ReportButton from "@/components/ReportButton";
+import UserAvatar from "@/components/UserAvatar";
 
 const stageLabels = {
   idea: "Idée validée",
@@ -33,7 +34,6 @@ export default function ProjectDetailsPage() {
   const [project, setProject] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [comment, setComment] = useState("");
   const [commentSaving, setCommentSaving] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
@@ -174,7 +174,10 @@ export default function ProjectDetailsPage() {
 
           <aside className="self-end rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Porté par</p>
-            <p className="mt-2 text-xl font-black">{project.author}</p>
+            <div className="mt-3 flex items-center gap-3">
+              <UserAvatar src={project.authorAvatar} name={project.author} className="h-11 w-11 rounded-xl ring-1 ring-white/15" />
+              <p className="text-xl font-black">{project.author}</p>
+            </div>
             <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
               <div><p className="text-2xl font-black text-cyan-300">{project.likesCount || 0}</p><p className="mt-1 text-xs text-slate-400">mentions J’aime</p></div>
               <div><p className="text-2xl font-black text-cyan-300">{project.commentsCount || comments.length}</p><p className="mt-1 text-xs text-slate-400">commentaires</p></div>
@@ -215,7 +218,7 @@ export default function ProjectDetailsPage() {
               <button className="portal-primary-button self-end" disabled={commentSaving || comment.trim().length < 2}>{commentSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Publier</button>
             </form>
             <div className="mt-7 space-y-4">
-              {comments.map((item) => <article key={item.id} className="rounded-2xl bg-slate-50 p-4"><div className="flex items-center justify-between gap-3"><p className="font-bold text-slate-900">{item.author}</p><time className="text-xs text-slate-400">{item.date}</time></div><p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p></article>)}
+              {comments.map((item) => <article key={item.id} className="rounded-2xl bg-slate-50 p-4"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><UserAvatar src={item.avatarUrl} name={item.author} className="h-10 w-10 rounded-xl" /><p className="truncate font-bold text-slate-900">{item.author}</p></div><time className="shrink-0 text-xs text-slate-400">{item.date}</time></div><p className="mt-3 text-sm leading-6 text-slate-600">{item.body}</p></article>)}
               {comments.length === 0 && <p className="rounded-2xl border border-dashed border-slate-200 px-5 py-8 text-center text-sm text-slate-500">Soyez le premier à commenter ce projet.</p>}
             </div>
           </section>
@@ -225,7 +228,7 @@ export default function ProjectDetailsPage() {
           <section className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3"><Users className="h-5 w-5 text-sky-600" /><h2 className="text-lg font-black text-slate-950">Équipe projet</h2></div>
             <div className="mt-5 space-y-3">
-              {(project.team_members || []).map((member, index) => <div key={`${member.name}-${index}`} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-cyan-300">{member.name?.slice(0, 1) || "E"}</span><div><p className="text-sm font-bold text-slate-900">{member.name}</p><p className="text-xs text-slate-500">{member.role || "Membre de l’équipe"}</p></div></div>)}
+              {(project.team_members || []).map((member, index) => <div key={`${member.name}-${index}`} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><UserAvatar src={member.avatar_url || member.photo_url} name={member.name} className="h-10 w-10 rounded-xl" /><div><p className="text-sm font-bold text-slate-900">{member.name}</p><p className="text-xs text-slate-500">{member.role || "Membre de l’équipe"}</p></div></div>)}
               {(!project.team_members || project.team_members.length === 0) && <p className="text-sm text-slate-500">Équipe portée par {project.author}.</p>}
             </div>
           </section>

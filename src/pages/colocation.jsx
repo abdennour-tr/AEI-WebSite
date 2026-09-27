@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Building2, CalendarDays, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, PhoneCall, Plus, UserRound, X } from "lucide-react";
+import { Building2, CalendarDays, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, PhoneCall, Plus, X } from "lucide-react";
 import fallbackAnnonces from "@/data/Colocation";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
@@ -10,6 +10,7 @@ import { housingApi } from "@/services/portalApi";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import EmptyState from "@/components/EmptyState";
 import ReportButton from "@/components/ReportButton";
+import UserAvatar from "@/components/UserAvatar";
 
 export default function ColocationPage() {
   const { data: annoncesData, loading, error, setData } = usePortalCollection(
@@ -184,11 +185,7 @@ export default function ColocationPage() {
 
             <div className="p-6">
               <div className="flex items-center gap-4 mb-4">
-                {annonce.avatar ? (
-                  <img src={annonce.avatar} className="h-12 w-12 rounded-full border border-gray-300 object-cover shadow-sm" alt={`Photo de ${annonce.nom}`} />
-                ) : (
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-sky-100 bg-sky-50 text-sky-700"><UserRound className="h-5 w-5" /></span>
-                )}
+                <UserAvatar src={annonce.avatar} name={annonce.nom} className="h-12 w-12 rounded-full border border-gray-300 shadow-sm" />
                 <div>
                   <h2 className="text-base font-bold text-slate-950">
                     {annonce.nom}

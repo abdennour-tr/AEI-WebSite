@@ -32,6 +32,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { clubAdminApi } from "@/services/clubAdminApi";
 import { uploadPublicImages } from "@/services/storageApi";
 import ImageUploadField from "@/components/ImageUploadField";
+import UserAvatar from "@/components/UserAvatar";
+import {
+  cleanSocialLinks,
+  clubSocialPlatforms,
+  createSocialLinksForm,
+  listClubSocials,
+} from "@/lib/clubSocials";
 import logo from "../assets/AEI.png";
 
 const navigation = [
@@ -107,6 +114,7 @@ function ClubProfilePreview({ profile, dashboard }) {
   const board = dashboard.board.filter((member) => member.active).slice(0, 6);
   const events = dashboard.events.filter((event) => event.status === "published").slice(0, 3);
   const announcements = dashboard.announcements.filter((item) => item.status === "published").slice(0, 3);
+  const socials = listClubSocials({ social_links: profile.social_links });
 
   return (
     <section id="club-profile-preview" className="mt-7 overflow-hidden rounded-3xl border border-cyan-200 bg-slate-950 text-white shadow-xl shadow-cyan-950/10">
@@ -138,12 +146,12 @@ function ClubProfilePreview({ profile, dashboard }) {
           <div><p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Présentation</p><p className="mt-3 text-sm leading-7 text-slate-600">{profile.description || "La présentation détaillée du club apparaîtra ici."}</p></div>
           <div><p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Nos objectifs</p>{objectives.length ? <ul className="mt-4 grid gap-3 sm:grid-cols-2">{objectives.map((objective) => <li key={objective} className="flex gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-700"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />{objective}</li>)}</ul> : <p className="mt-3 text-sm text-slate-400">Ajoutez des objectifs pour compléter cette section.</p>}</div>
         </div>
-        <aside className="space-y-5 bg-slate-50 p-5 text-slate-950 sm:p-7"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Recrutement</p><p className="mt-2 text-sm font-bold leading-6 text-slate-800">{profile.recruitment_label || "Conditions à préciser"}</p></div>{profile.contact_url && <a href={profile.contact_url} target="_blank" rel="noreferrer" className="portal-primary-button w-full"><Send className="h-4 w-4" /> Contacter le club</a>}<p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-500">Cet aperçu ne publie rien. Enregistrez la fiche pour appliquer les modifications.</p></aside>
+        <aside className="space-y-5 bg-slate-50 p-5 text-slate-950 sm:p-7"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Recrutement</p><p className="mt-2 text-sm font-bold leading-6 text-slate-800">{profile.recruitment_label || "Conditions à préciser"}</p></div>{socials.length > 0 && <div><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Réseaux sociaux</p><div className="mt-3 flex flex-wrap gap-2">{socials.map((social) => <a key={social.key} href={social.url} target="_blank" rel="noreferrer" className="portal-secondary-button !px-3 !py-2">{social.label}</a>)}</div></div>}<p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-5 text-slate-500">Cet aperçu ne publie rien. Enregistrez la fiche pour appliquer les modifications.</p></aside>
       </div>
 
       {(board.length > 0 || events.length > 0 || announcements.length > 0) && (
         <div className="grid gap-5 border-t border-white/10 p-5 sm:p-7 xl:grid-cols-3">
-          {board.length > 0 && <div><p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-cyan-200"><UsersRound className="h-4 w-4" /> Bureau</p><div className="mt-3 space-y-2">{board.slice(0, 3).map((member) => <div key={member.id} className="flex items-center gap-3 rounded-xl bg-white/5 p-3"><span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white/10 text-xs font-black text-cyan-200">{member.photo_url ? <img src={member.photo_url} alt="" className="h-full w-full object-cover" /> : member.full_name.slice(0, 2).toUpperCase()}</span><div className="min-w-0"><p className="truncate text-sm font-bold">{member.full_name}</p><p className="truncate text-xs text-slate-400">{member.role_title}</p></div></div>)}</div></div>}
+          {board.length > 0 && <div><p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-cyan-200"><UsersRound className="h-4 w-4" /> Bureau</p><div className="mt-3 space-y-2">{board.slice(0, 3).map((member) => <div key={member.id} className="flex items-center gap-3 rounded-xl bg-white/5 p-3"><UserAvatar src={member.photo_url} name={member.full_name} className="h-9 w-9 rounded-xl" /><div className="min-w-0"><p className="truncate text-sm font-bold">{member.full_name}</p><p className="truncate text-xs text-slate-400">{member.role_title}</p></div></div>)}</div></div>}
           {events.length > 0 && <div><p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-cyan-200"><CalendarDays className="h-4 w-4" /> Événements</p><div className="mt-3 space-y-2">{events.map((event) => <div key={event.id} className="rounded-xl bg-white/5 p-3"><p className="truncate text-sm font-bold">{event.title}</p><p className="mt-1 text-xs text-slate-400">{formatDate(event.starts_at, true)}</p></div>)}</div></div>}
           {announcements.length > 0 && <div><p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-cyan-200"><Megaphone className="h-4 w-4" /> Annonces</p><div className="mt-3 space-y-2">{announcements.map((item) => <div key={item.id} className="rounded-xl bg-white/5 p-3"><p className="truncate text-sm font-bold">{item.title}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">{item.body}</p></div>)}</div></div>}
         </div>
@@ -168,7 +176,7 @@ export default function ClubAdminDashboardPage() {
     tagline: access.club.tagline,
     description: access.club.description,
     recruitment_label: access.club.recruitment_label || "",
-    contact_url: access.club.contact_url || "",
+    social_links: createSocialLinksForm(access.club),
     objectives: (access.club.objectives || []).join("\n"),
   });
   const [eventForm, setEventForm] = useState(emptyEventForm);
@@ -238,8 +246,11 @@ export default function ClubAdminDashboardPage() {
     event.preventDefault();
     setBusy(true);
     try {
+      const socialLinks = cleanSocialLinks(profileForm.social_links);
       const updated = await clubAdminApi.updateProfile(access.club_id, {
         ...profileForm,
+        social_links: socialLinks,
+        contact_url: Object.values(socialLinks)[0] || null,
         objectives: profileForm.objectives
           .split("\n")
           .map((item) => item.trim())
@@ -469,7 +480,7 @@ export default function ClubAdminDashboardPage() {
                     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                       <PanelTitle eyebrow="À traiter" title="Candidatures récentes" action={<button type="button" onClick={() => setActiveSection("applications")} className="text-sm font-bold text-cyan-700">Tout afficher</button>} />
                       <div className="mt-5 space-y-3">
-                        {pendingApplications.slice(0, 4).map((application) => <div key={application.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-700">{(application.applicant?.display_name || "ET").slice(0, 2).toUpperCase()}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{application.applicant?.display_name || "Étudiant AEI"}</p><p className="mt-0.5 text-xs text-slate-500">Pôle {application.preferred_pole} · {formatDate(application.created_at)}</p></div><span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">À examiner</span></div>)}
+                        {pendingApplications.slice(0, 4).map((application) => <div key={application.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><UserAvatar src={application.applicant?.avatar_url} name={application.applicant?.display_name || "Étudiant AEI"} className="h-10 w-10 rounded-xl" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{application.applicant?.display_name || "Étudiant AEI"}</p><p className="mt-0.5 text-xs text-slate-500">Pôle {application.preferred_pole} · {formatDate(application.created_at)}</p></div><span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">À examiner</span></div>)}
                         {!pendingApplications.length && <p className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">Aucune candidature en attente.</p>}
                       </div>
                     </article>
@@ -494,7 +505,30 @@ export default function ClubAdminDashboardPage() {
                     <label className="block lg:col-span-2"><span className="mb-2 block text-sm font-bold">Phrase d’accroche</span><input className="portal-input" value={profileForm.tagline} onChange={(event) => setProfileForm({ ...profileForm, tagline: event.target.value })} required /></label>
                     <label className="block lg:col-span-2"><span className="mb-2 block text-sm font-bold">Présentation</span><textarea className="portal-input min-h-36 resize-y" value={profileForm.description} onChange={(event) => setProfileForm({ ...profileForm, description: event.target.value })} required /></label>
                     <label className="block"><span className="mb-2 block text-sm font-bold">Conditions de recrutement</span><input className="portal-input" value={profileForm.recruitment_label} onChange={(event) => setProfileForm({ ...profileForm, recruitment_label: event.target.value })} /></label>
-                    <label className="block"><span className="mb-2 block text-sm font-bold">Lien du réseau social</span><input type="url" className="portal-input" value={profileForm.contact_url} onChange={(event) => setProfileForm({ ...profileForm, contact_url: event.target.value })} /></label>
+                    <fieldset className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 lg:col-span-2 sm:p-5">
+                      <legend className="px-2 text-sm font-black text-slate-900">Réseaux sociaux du club</legend>
+                      <p className="mb-5 text-sm leading-6 text-slate-500">Ajoutez uniquement les réseaux utilisés par votre club. Les champs laissés vides ne seront pas affichés.</p>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {clubSocialPlatforms.map((social) => (
+                          <label key={social.key} className="block">
+                            <span className="mb-2 block text-sm font-bold">{social.label}</span>
+                            <input
+                              type="url"
+                              className="portal-input bg-white"
+                              value={profileForm.social_links[social.key] || ""}
+                              onChange={(event) => setProfileForm({
+                                ...profileForm,
+                                social_links: {
+                                  ...profileForm.social_links,
+                                  [social.key]: event.target.value,
+                                },
+                              })}
+                              placeholder={social.placeholder}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
                     <label className="block lg:col-span-2"><span className="mb-2 block text-sm font-bold">Objectifs <span className="font-normal text-slate-400">— un objectif par ligne</span></span><textarea className="portal-input min-h-32 resize-y" value={profileForm.objectives} onChange={(event) => setProfileForm({ ...profileForm, objectives: event.target.value })} /></label>
                     <div className="lg:col-span-2 flex justify-end"><button type="submit" disabled={busy} className="portal-primary-button min-w-44">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Enregistrer la fiche</button></div>
                   </form>
@@ -526,7 +560,7 @@ export default function ClubAdminDashboardPage() {
                       {dashboard.board.map((member) => (
                         <article key={member.id} className="rounded-2xl border border-slate-200 p-4">
                           <div className="flex items-center gap-4">
-                            {member.photo_url ? <img src={member.photo_url} alt={member.full_name} className="h-14 w-14 shrink-0 rounded-2xl object-cover" /> : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-cyan-300">{member.full_name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>}
+                            <UserAvatar src={member.photo_url} name={member.full_name} className="h-14 w-14 rounded-2xl" />
                             <div className="min-w-0 flex-1"><h3 className="truncate font-bold">{member.full_name}</h3><p className="mt-1 text-sm text-slate-500">{member.role_title}</p><span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${member.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{member.active ? "Visible" : "Masqué"}</span></div>
                           </div>
                           <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
@@ -581,7 +615,7 @@ export default function ClubAdminDashboardPage() {
                     {dashboard.applications.map((application) => (
                       <article key={application.id} className="rounded-2xl border border-slate-200 p-5">
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-sm font-bold text-violet-700">{(application.applicant?.display_name || "ET").slice(0, 2).toUpperCase()}</span>
+                          <UserAvatar src={application.applicant?.avatar_url} name={application.applicant?.display_name || "Étudiant AEI"} className="h-12 w-12 rounded-2xl" />
                           <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold text-slate-950">{application.applicant?.display_name || "Étudiant AEI"}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${application.status === "accepted" ? "bg-emerald-100 text-emerald-700" : application.status === "refused" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>{statusLabels[application.status]}</span></div><div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500"><span>Pôle : {application.preferred_pole}</span><span>Disponibilité : {application.availability}</span><span>{formatDate(application.created_at)}</span></div><p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">{application.motivation}</p></div>
                           {application.status === "submitted" && <div className="flex gap-2 lg:flex-col"><button type="button" disabled={busy} onClick={() => runAction(() => clubAdminApi.reviewApplication(application.id, "accepted"), "Candidature acceptée et étudiant ajouté aux membres.")} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"><Check className="h-4 w-4" /> Accepter</button><button type="button" disabled={busy} onClick={() => runAction(() => clubAdminApi.reviewApplication(application.id, "refused"), "Candidature refusée et étudiant informé.")} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-100"><X className="h-4 w-4" /> Refuser</button></div>}
                         </div>

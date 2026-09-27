@@ -2,6 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { AuthContext } from "@/contexts/auth-context";
 
+async function fetchAccountProfile(userId) {
+  const [{ data: privateProfile }, { data: publicProfile }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+    supabase
+      .from("public_profiles")
+      .select("avatar_url")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+
+  return privateProfile
+    ? { ...privateProfile, avatar_url: publicProfile?.avatar_url || null }
+    : null;
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -47,19 +62,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!supabase || !session?.user?.id) {
-      setProfileLoading(false);
       return undefined;
     }
 
     let active = true;
-    setProfileLoading(true);
 
     const loadProfile = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .maybeSingle();
+      const data = await fetchAccountProfile(session.user.id);
 
       if (active) {
         setProfile(data ?? null);
@@ -142,11 +151,7 @@ export function AuthProvider({ children }) {
       },
       async refreshProfile() {
         if (!supabase || !session?.user?.id) return null;
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .maybeSingle();
+        const data = await fetchAccountProfile(session.user.id);
         setProfile(data ?? null);
         return data ?? null;
       },

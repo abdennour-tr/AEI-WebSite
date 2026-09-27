@@ -45,6 +45,7 @@ Dans **Supabase → SQL Editor**, exécuter les fichiers dans cet ordre :
 7. `supabase/15_admin_content_control.sql` — inventaire et suppression sécurisée des contenus par l’administrateur.
 8. `supabase/16_club_accounts_board_and_events.sql` — comptes institutionnels, bureaux des clubs et rattachement des événements existants.
 9. `supabase/17_course_library_and_ai_summaries.sql` — gestion des PDF de cours et résumés pédagogiques générés avec Groq.
+10. `supabase/18_club_social_links.sql` — liens Instagram, Facebook, LinkedIn, YouTube, TikTok et site web propres à chaque club.
 
 Chaque script doit terminer sans erreur avant de passer au suivant.
 

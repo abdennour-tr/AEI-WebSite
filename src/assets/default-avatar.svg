@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">Avatar par défaut</title>
+  <desc id="description">Silhouette neutre d’un utilisateur</desc>
+  <defs>
+    <linearGradient id="background" x1="18" y1="10" x2="110" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e0f2fe"/>
+      <stop offset="1" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="silhouette" x1="44" y1="33" x2="88" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64748b"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#background)"/>
+  <circle cx="64" cy="49" r="22" fill="url(#silhouette)"/>
+  <path d="M25 111c2.8-24.2 17.8-37 39-37s36.2 12.8 39 37" fill="url(#silhouette)"/>
+  <circle cx="103" cy="25" r="10" fill="#38bdf8" opacity=".22"/>
+</svg>

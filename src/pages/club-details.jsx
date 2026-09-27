@@ -33,6 +33,8 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import clubs from "@/data/Clubs";
 import { clubApplicationsApi } from "@/services/portalApi";
 import { clubAdminApi } from "@/services/clubAdminApi";
+import UserAvatar from "@/components/UserAvatar";
+import { listClubSocials } from "@/lib/clubSocials";
 import ShareButton from "@/components/ShareButton";
 import ReportButton from "@/components/ReportButton";
 
@@ -168,12 +170,7 @@ export default function ClubDetailsPage() {
               .toUpperCase(),
           }))
         : staticClub.board,
-      socials: [
-        {
-          label: "LinkedIn",
-          url: profile.contact_url || staticClub.contactUrl,
-        },
-      ],
+      socials: listClubSocials(profile, staticClub.contactUrl),
     };
   }, [managedContent, staticClub]);
 
@@ -384,7 +381,7 @@ export default function ClubDetailsPage() {
               <p className="text-sm font-bold text-slate-900">Réseaux sociaux</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {club.socials.map((social) => (
-                  <a key={social.url} href={social.url} target="_blank" rel="noreferrer" className="portal-secondary-button !py-2">
+                  <a key={social.key || social.url} href={social.url} target="_blank" rel="noreferrer" className="portal-secondary-button !py-2">
                     {social.label} <ExternalLink className="h-4 w-4" />
                   </a>
                 ))}
@@ -450,7 +447,7 @@ export default function ClubDetailsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {club.board.map((member) => (
               <article key={member.id || member.name} className="portal-panel flex items-center gap-4">
-                {member.photoUrl ? <img src={member.photoUrl} alt={member.name} className="h-12 w-12 shrink-0 rounded-2xl object-cover shadow-sm" /> : <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${theme.accent} text-sm font-bold text-white shadow-sm`}>{member.initials}</span>}
+                <UserAvatar src={member.photoUrl} name={member.name} className="h-12 w-12 rounded-2xl shadow-sm" />
                 <div><h3 className="font-bold text-slate-950">{member.name}</h3><p className="mt-1 text-sm text-slate-500">{member.role}</p></div>
               </article>
             ))}

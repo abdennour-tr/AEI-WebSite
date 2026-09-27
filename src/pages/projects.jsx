@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Code2,
   Filter,
-  FolderGit2,
   Heart,
   LoaderCircle,
   MessageCircle,
@@ -19,6 +18,7 @@ import {
 import fallbackProjects from "@/data/my-projects";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { studentProjectsApi } from "@/services/projectsApi";
+import UserAvatar from "@/components/UserAvatar";
 
 const stageMeta = {
   idea: { label: "Idée validée", className: "bg-amber-100 text-amber-800" },
@@ -168,7 +168,7 @@ export default function PublicProjectsPage() {
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent p-6 pt-20">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-cyan-300">{featuredProject.author}</p>
+                    <div className="flex items-center gap-2.5"><UserAvatar src={featuredProject.authorAvatar} name={featuredProject.author} className="h-8 w-8 rounded-lg ring-1 ring-white/20" /><p className="text-sm font-semibold text-cyan-300">{featuredProject.author}</p></div>
                     <h2 className="mt-1 text-2xl font-black">{featuredProject.title}</h2>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(featuredProject.tech_stack || []).slice(0, 4).map((tech) => (
@@ -243,7 +243,7 @@ export default function PublicProjectsPage() {
                     {(project.tech_stack || []).slice(0, 4).map((item) => <span key={item} className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{item}</span>)}
                   </div>
                   <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
-                    <FolderGit2 className="h-4 w-4 text-sky-600" />
+                    <UserAvatar src={project.authorAvatar} name={project.author} className="h-7 w-7 rounded-lg" />
                     <span className="truncate font-semibold text-slate-700">{project.author}</span>
                     <span>·</span>
                     <CalendarDays className="h-3.5 w-3.5" />

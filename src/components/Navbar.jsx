@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 
-import profile from "../assets/profile.jpg";
 import chat from "../assets/icons/chat-a-bulles.png";
 import colocation from "../assets/icons/colocation.png";
 import communautes from "../assets/icons/communautes.png";
@@ -15,6 +14,7 @@ import Footer from "../components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import GlobalSearch from "@/components/GlobalSearch";
 import NotificationCenter from "@/components/NotificationCenter";
+import UserAvatar from "@/components/UserAvatar";
 
 function ScrollToTopDiv() {
   const { pathname, hash } = useLocation();
@@ -101,10 +101,10 @@ export default function MainNavigation({ children }) {
           className="mb-7 block rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-sky-200 hover:bg-sky-50/60"
         >
           <div className="flex items-center gap-3">
-            <img
-              src={profile}
-              alt="Profile"
-              className="h-12 w-12 rounded-xl object-cover ring-2 ring-white"
+            <UserAvatar
+              src={accountProfile?.avatar_url}
+              name={displayName}
+              className="h-12 w-12 rounded-xl ring-2 ring-white"
             />
             <div className="min-w-0">
               <h4 className="truncate text-sm font-bold text-slate-900">

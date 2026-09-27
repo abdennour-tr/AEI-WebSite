@@ -18,11 +18,11 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import fallbackAvatar from "@/assets/profile.jpg";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { listStudentBadges } from "@/services/experienceApi";
 import { exportAccountData, requestAccountDeletion } from "@/services/accountApi";
+import UserAvatar from "@/components/UserAvatar";
 
 const fallbackBadge = {
   badge_code: "aei_member",
@@ -87,7 +87,7 @@ export default function ProfilePage() {
     hideEmail: true,
   });
   const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(fallbackAvatar);
+  const [avatarPreview, setAvatarPreview] = useState("");
   const [badges, setBadges] = useState([fallbackBadge]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -122,7 +122,7 @@ export default function ProfilePage() {
       .select("avatar_url")
       .eq("user_id", user.id)
       .maybeSingle()
-      .then(({ data }) => data?.avatar_url && setAvatarPreview(data.avatar_url));
+      .then(({ data }) => setAvatarPreview(data?.avatar_url || ""));
     listStudentBadges().then((items) => setBadges(items.length ? items : [fallbackBadge]));
   }, [user]);
 
@@ -163,7 +163,7 @@ export default function ProfilePage() {
 
       const { error: publicError } = await supabase
         .from("public_profiles")
-        .update({ display_name: form.fullName.trim(), avatar_url: avatarUrl })
+        .update({ display_name: form.fullName.trim(), avatar_url: avatarUrl || null })
         .eq("user_id", user.id);
       if (publicError) throw publicError;
 
@@ -231,7 +231,7 @@ export default function ProfilePage() {
         <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
           <button type="button" onClick={() => fileInputRef.current?.click()} className="group relative h-28 w-28 shrink-0 overflow-hidden rounded-3xl ring-4 ring-white/10" aria-label="Changer la photo de profil">
-            <img src={avatarPreview} alt="Photo de profil" className="h-full w-full object-cover" />
+            <UserAvatar src={avatarPreview} name={form.fullName} className="h-full w-full rounded-3xl" />
             <span className="absolute inset-0 flex items-center justify-center bg-slate-950/70 text-sm font-bold opacity-0 transition group-hover:opacity-100"><Upload className="mr-2 h-4 w-4" /> Modifier</span>
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => {
