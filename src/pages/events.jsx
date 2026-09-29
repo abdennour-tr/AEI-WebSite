@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Download,
   ExternalLink,
   Grid3X3,
   List,
@@ -29,6 +30,8 @@ import {
   googleCalendarUrl,
 } from "@/services/agendaApi";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useAuth } from "@/hooks/useAuth";
+import { createEventTicketPdf } from "@/services/eventTicketPdf";
 
 const fallbackAgenda = fallbackEvents.map(formatAgendaEvent);
 
@@ -108,6 +111,7 @@ function CalendarView({ events, month, onMonthChange, onSelect }) {
 
 export default function EventsAndAgendaPage() {
   const { requireAuth } = useRequireAuth();
+  const { user, profile } = useAuth();
   const { data: events, loading, setData } = usePortalCollection(loadAgenda, fallbackAgenda);
   const [period, setPeriod] = useState("all");
   const [club, setClub] = useState("Tous");
@@ -120,6 +124,7 @@ export default function EventsAndAgendaPage() {
   });
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [ticketNotice, setTicketNotice] = useState("");
   const [reminderMinutes, setReminderMinutes] = useState(1440);
   const [qrDataUrl, setQrDataUrl] = useState("");
 
@@ -158,7 +163,7 @@ export default function EventsAndAgendaPage() {
       color: { dark: "#0f172a", light: "#ffffff" },
       errorCorrectionLevel: "H",
     }).then(setQrDataUrl).catch(() => setQrDataUrl(""));
-  }, [selectedEvent?.qr_token]);
+  }, [selectedEvent]);
 
   const syncEvent = (updated) => {
     setData((items) => items.map((item) => (item.event_key === updated.event_key ? updated : item)));
@@ -173,9 +178,10 @@ export default function EventsAndAgendaPage() {
     }
     setSaving(true);
     setActionError("");
+    setTicketNotice("");
     try {
       const result = await agendaApi.register(selectedEvent, reminderMinutes);
-      syncEvent({
+      const registeredEvent = {
         ...selectedEvent,
         is_registered: true,
         registration_status: "registered",
@@ -184,9 +190,40 @@ export default function EventsAndAgendaPage() {
         qr_token: result.qr_token,
         registered_count: selectedEvent.registered_count + 1,
         remaining_slots: selectedEvent.remaining_slots == null ? null : Math.max(0, selectedEvent.remaining_slots - 1),
-      });
+      };
+      syncEvent(registeredEvent);
+      try {
+        await createEventTicketPdf({ event: registeredEvent, student: {
+          fullName: profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Étudiant AEI",
+          email: user?.email || "Non renseignée",
+          specialty: user?.user_metadata?.onboarding?.specialty || user?.user_metadata?.specialty || "Non renseignée",
+          level: user?.user_metadata?.onboarding?.level || user?.user_metadata?.level || "Non renseigné",
+        } });
+        setTicketNotice("Votre inscription est confirmée. Le ticket PDF a été téléchargé.");
+      } catch {
+        setTicketNotice("Votre inscription est confirmée. Utilisez le bouton ci-dessous pour télécharger votre ticket.");
+      }
     } catch (registerError) {
       setActionError(registerError.message === "Event is full" ? "Cet événement est complet." : registerError.message || "L’inscription n’a pas pu être enregistrée.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const downloadTicket = async () => {
+    if (!selectedEvent?.qr_token) return;
+    setSaving(true);
+    setActionError("");
+    try {
+      await createEventTicketPdf({ event: selectedEvent, student: {
+        fullName: profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Étudiant AEI",
+        email: user?.email || "Non renseignée",
+        specialty: user?.user_metadata?.onboarding?.specialty || user?.user_metadata?.specialty || "Non renseignée",
+        level: user?.user_metadata?.onboarding?.level || user?.user_metadata?.level || "Non renseigné",
+      } });
+      setTicketNotice("Votre ticket PDF a été téléchargé.");
+    } catch (ticketError) {
+      setActionError(ticketError.message || "Le ticket PDF n’a pas pu être généré.");
     } finally {
       setSaving(false);
     }
@@ -245,7 +282,7 @@ export default function EventsAndAgendaPage() {
           </div>
 
           {nextEvent && (
-            <button onClick={() => { setSelectedEvent(nextEvent); setReminderMinutes(nextEvent.reminder_minutes || 1440); }} className="group self-end rounded-[1.5rem] border border-white/10 bg-white/10 p-5 text-left backdrop-blur-xl transition hover:bg-white/15 sm:p-6">
+            <button onClick={() => { setSelectedEvent(nextEvent); setReminderMinutes(nextEvent.reminder_minutes || 1440); setTicketNotice(""); }} className="group self-end rounded-[1.5rem] border border-white/10 bg-white/10 p-5 text-left backdrop-blur-xl transition hover:bg-white/15 sm:p-6">
               <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[0.18em] text-teal-300">Prochain rendez-vous</span><ChevronRight className="h-5 w-5 text-slate-400 transition group-hover:translate-x-1" /></div>
               <div className="mt-6 flex gap-4"><div className="flex h-18 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-white text-slate-950"><span className="text-2xl font-black leading-none">{nextEvent.dayNumber}</span><span className="mt-1 text-[10px] font-black text-indigo-600">{nextEvent.monthShort}</span></div><div><h2 className="text-xl font-black leading-tight">{nextEvent.title}</h2><p className="mt-2 flex items-center gap-1.5 text-sm text-slate-300"><Clock3 className="h-4 w-4" /> {nextEvent.timeLabel}</p><p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400"><MapPin className="h-4 w-4" /> {nextEvent.location}</p></div></div>
             </button>
@@ -265,7 +302,7 @@ export default function EventsAndAgendaPage() {
 
       {loading && <div className="portal-empty flex items-center justify-center gap-2"><LoaderCircle className="h-5 w-5 animate-spin" /> Synchronisation de l’agenda…</div>}
 
-      {!loading && view === "calendar" && <CalendarView events={filteredEvents} month={month} onMonthChange={setMonth} onSelect={(event) => { setSelectedEvent(event); setReminderMinutes(event.reminder_minutes || 1440); }} />}
+      {!loading && view === "calendar" && <CalendarView events={filteredEvents} month={month} onMonthChange={setMonth} onSelect={(event) => { setSelectedEvent(event); setReminderMinutes(event.reminder_minutes || 1440); setTicketNotice(""); }} />}
 
       {!loading && view === "list" && filteredEvents.length > 0 && (
         <section className="space-y-4">
@@ -275,7 +312,7 @@ export default function EventsAndAgendaPage() {
               <Motion.article key={event.event_key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.04, 0.24) }} className="group grid gap-5 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-xl hover:shadow-slate-200/50 md:grid-cols-[86px_minmax(0,1fr)_220px] md:items-center sm:p-6">
                 <div className="flex h-20 w-20 flex-col items-center justify-center rounded-2xl bg-[#101529] text-white"><span className="text-3xl font-black leading-none">{event.dayNumber}</span><span className="mt-1 text-xs font-black tracking-wider text-teal-300">{event.monthShort}</span></div>
                 <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${categoryStyles[event.category] || "bg-slate-100 text-slate-700"}`}>{event.category}</span><span className="text-xs font-bold text-slate-400">{event.organizer}</span>{event.is_registered && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700"><Check className="h-3.5 w-3.5" /> Inscrit</span>}</div><h2 className="mt-3 text-xl font-black tracking-tight text-slate-950">{event.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{event.description}</p><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500"><span className="inline-flex items-center gap-1.5"><Clock3 className="h-4 w-4 text-indigo-500" /> {event.dateLabel}, {event.timeLabel}</span><span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-indigo-500" /> {event.location}</span></div></div>
-                <div className="md:border-l md:border-slate-100 md:pl-6"><div className="flex items-center justify-between text-xs font-bold"><span className="text-slate-500">Places</span><span className={event.remaining_slots === 0 ? "text-rose-600" : "text-slate-800"}>{event.remaining_slots == null ? "Accès libre" : `${event.remaining_slots} disponibles`}</span></div>{event.capacity && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-teal-400" style={{ width: `${progress}%` }} /></div>}<button onClick={() => { setSelectedEvent(event); setReminderMinutes(event.reminder_minutes || 1440); setActionError(""); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-indigo-700">{event.is_registered ? <><QrCode className="h-4 w-4" /> Mon billet</> : <>Voir l’événement <ChevronRight className="h-4 w-4" /></>}</button></div>
+                <div className="md:border-l md:border-slate-100 md:pl-6"><div className="flex items-center justify-between text-xs font-bold"><span className="text-slate-500">Places</span><span className={event.remaining_slots === 0 ? "text-rose-600" : "text-slate-800"}>{event.remaining_slots == null ? "Accès libre" : `${event.remaining_slots} disponibles`}</span></div>{event.capacity && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-teal-400" style={{ width: `${progress}%` }} /></div>}<button onClick={() => { setSelectedEvent(event); setReminderMinutes(event.reminder_minutes || 1440); setActionError(""); setTicketNotice(""); }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-indigo-700">{event.is_registered ? <><QrCode className="h-4 w-4" /> Mon billet</> : <>Voir l’événement <ChevronRight className="h-4 w-4" /></>}</button></div>
               </Motion.article>
             );
           })}
@@ -289,12 +326,13 @@ export default function EventsAndAgendaPage() {
           <><Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedEvent(null)} className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm" /><Motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }} className="fixed inset-y-0 right-0 z-50 w-full max-w-xl overflow-y-auto bg-white shadow-2xl"><div className="relative overflow-hidden bg-[#101529] p-6 text-white sm:p-8"><div className="absolute -right-14 -top-14 h-48 w-48 rounded-full bg-indigo-500/30 blur-3xl" /><button onClick={() => setSelectedEvent(null)} className="absolute right-5 top-5 rounded-xl bg-white/10 p-2 text-white hover:bg-white/15" aria-label="Fermer"><X className="h-5 w-5" /></button><div className="relative pr-12"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-black ${categoryStyles[selectedEvent.category] || "bg-white/10 text-white"}`}>{selectedEvent.category}</span><h2 className="mt-5 text-3xl font-black tracking-tight">{selectedEvent.title}</h2><p className="mt-3 text-sm font-bold text-teal-300">{selectedEvent.organizer}</p></div></div><div className="space-y-6 p-6 sm:p-8"><div className="grid grid-cols-2 gap-3"><div className="rounded-2xl bg-slate-50 p-4"><CalendarDays className="h-5 w-5 text-indigo-600" /><p className="mt-3 text-sm font-black capitalize text-slate-900">{selectedEvent.dateLabel}</p><p className="mt-1 text-xs text-slate-500">{selectedEvent.timeLabel}</p></div><div className="rounded-2xl bg-slate-50 p-4"><MapPin className="h-5 w-5 text-indigo-600" /><p className="mt-3 text-sm font-black text-slate-900">{selectedEvent.location}</p><p className="mt-1 text-xs text-slate-500">Campus ENIAD</p></div></div><p className="text-sm leading-7 text-slate-600">{selectedEvent.description}</p><div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center justify-between"><span className="inline-flex items-center gap-2 text-sm font-black text-slate-900"><Users className="h-4 w-4 text-indigo-600" /> Inscriptions</span><span className="text-sm font-black text-indigo-700">{selectedEvent.registered_count}{selectedEvent.capacity ? ` / ${selectedEvent.capacity}` : ""}</span></div>{selectedEvent.capacity && <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-teal-400" style={{ width: `${Math.min(100, (selectedEvent.registered_count / selectedEvent.capacity) * 100)}%` }} /></div>}<p className="mt-2 text-xs text-slate-500">{selectedEvent.remaining_slots == null ? "Événement en accès libre" : selectedEvent.remaining_slots === 0 ? "Complet" : `${selectedEvent.remaining_slots} places encore disponibles`}</p></div>
 
                   {selectedEvent.is_registered ? (
-                    <div className="space-y-4"><div className="rounded-[1.5rem] border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-5 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><TicketCheck className="h-6 w-6" /></div><h3 className="mt-3 text-lg font-black text-slate-950">Votre inscription est confirmée</h3><p className="mt-1 text-xs text-slate-500">Présentez ce QR code à l’entrée de l’événement.</p>{qrDataUrl ? <img src={qrDataUrl} alt="QR code du billet" className="mx-auto mt-5 w-52 rounded-2xl bg-white p-3 shadow-sm" /> : <div className="mx-auto mt-5 flex h-52 w-52 items-center justify-center rounded-2xl bg-white"><LoaderCircle className="h-6 w-6 animate-spin text-indigo-600" /></div>}<p className="mt-3 font-mono text-[11px] text-slate-400">Billet personnel · non transférable</p></div><div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-sm font-black text-slate-900"><AlarmClock className="h-4 w-4 text-indigo-600" /> Rappel automatique</span><button onClick={() => updateReminder(!selectedEvent.reminder_enabled)} disabled={saving} className={`relative h-7 w-12 rounded-full transition ${selectedEvent.reminder_enabled ? "bg-indigo-600" : "bg-slate-200"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${selectedEvent.reminder_enabled ? "left-6" : "left-1"}`} /></button></div>{selectedEvent.reminder_enabled && <select value={reminderMinutes} onChange={(event) => updateReminder(true, Number(event.target.value))} className="portal-select mt-3">{reminderOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}</div><button onClick={cancelRegistration} disabled={saving} className="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700 hover:bg-rose-100">Annuler mon inscription</button></div>
+                    <div className="space-y-4"><div className="rounded-[1.5rem] border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-5 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><TicketCheck className="h-6 w-6" /></div><h3 className="mt-3 text-lg font-black text-slate-950">Votre inscription est confirmée</h3><p className="mt-1 text-xs text-slate-500">Téléchargez votre ticket nominatif et présentez son QR code à l’entrée.</p>{qrDataUrl ? <img src={qrDataUrl} alt="QR code du billet" className="mx-auto mt-5 w-52 rounded-2xl bg-white p-3 shadow-sm" /> : <div className="mx-auto mt-5 flex h-52 w-52 items-center justify-center rounded-2xl bg-white"><LoaderCircle className="h-6 w-6 animate-spin text-indigo-600" /></div>}<p className="mt-3 font-mono text-[11px] text-slate-400">Billet personnel · QR unique · non transférable</p><button type="button" onClick={downloadTicket} disabled={saving} className="portal-primary-button mt-5 w-full justify-center"><Download className="h-4 w-4" /> Télécharger mon ticket PDF</button></div><div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-sm font-black text-slate-900"><AlarmClock className="h-4 w-4 text-indigo-600" /> Rappel automatique</span><button onClick={() => updateReminder(!selectedEvent.reminder_enabled)} disabled={saving} className={`relative h-7 w-12 rounded-full transition ${selectedEvent.reminder_enabled ? "bg-indigo-600" : "bg-slate-200"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${selectedEvent.reminder_enabled ? "left-6" : "left-1"}`} /></button></div>{selectedEvent.reminder_enabled && <select value={reminderMinutes} onChange={(event) => updateReminder(true, Number(event.target.value))} className="portal-select mt-3">{reminderOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}</div><button onClick={cancelRegistration} disabled={saving} className="w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700 hover:bg-rose-100">Annuler mon inscription</button></div>
                   ) : (
                     <div className="rounded-[1.5rem] bg-slate-950 p-5 text-white"><h3 className="text-lg font-black">Réserver ma place</h3><p className="mt-1 text-sm text-slate-400">Un billet QR personnel sera créé après l’inscription.</p><label className="mt-4 block text-xs font-bold text-slate-300">Me rappeler<select value={reminderMinutes} onChange={(event) => setReminderMinutes(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none">{reminderOptions.map((option) => <option key={option.value} value={option.value} className="text-slate-900">{option.label}</option>)}</select></label><button onClick={register} disabled={saving || selectedEvent.remaining_slots === 0} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-50">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <TicketCheck className="h-4 w-4" />} {selectedEvent.remaining_slots === 0 ? "Événement complet" : "Confirmer mon inscription"}</button></div>
                   )}
 
                   {actionError && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{actionError}</p>}
+                  {ticketNotice && <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{ticketNotice}</p>}
                   <a href={googleCalendarUrl(selectedEvent)} target="_blank" rel="noreferrer" className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"><CalendarDays className="h-4 w-4" /> Ajouter à Google Calendar <ExternalLink className="h-3.5 w-3.5" /></a>
                 </div></Motion.div></>
         )}

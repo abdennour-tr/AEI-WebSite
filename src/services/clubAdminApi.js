@@ -45,7 +45,7 @@ export const clubAdminApi = {
   },
 
   async getDashboard(clubId) {
-    const [clubEvents, agendaEvents, announcements, board, applications, members, views, registrations, attendance] =
+    const [clubEvents, agendaEvents, announcements, board, applications, members, views, registrations, attendance, collaborationClubs] =
       await Promise.all([
         unwrap(
           client()
@@ -110,6 +110,14 @@ export const clubAdminApi = {
             .eq("event.club_id", clubId)
             .eq("attended", true)
         ),
+        optionalRows(
+          client()
+            .from("club_profiles")
+            .select("id,name")
+            .eq("status", "active")
+            .neq("id", clubId)
+            .order("name", { ascending: true })
+        ),
       ]);
 
     const applicantIds = [...new Set(applications.data.map((item) => item.applicant_id))];
@@ -137,6 +145,7 @@ export const clubAdminApi = {
         })),
       ].sort((left, right) => new Date(left.starts_at) - new Date(right.starts_at)),
       announcements: announcements.data,
+      collaborationClubs,
       board,
       applications: applications.data.map((application) => ({
         ...application,
@@ -255,6 +264,25 @@ export const clubAdminApi = {
     return data;
   },
 
+  async listEventAttendance(event) {
+    const { data, error } = await client().rpc("list_club_event_attendance", {
+      expected_source: event.source === "agenda" ? "portal" : event.source,
+      expected_event_id: event.id,
+    });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async checkInEvent(event, token) {
+    const { data, error } = await client().rpc("club_check_in_event", {
+      expected_source: event.source === "agenda" ? "portal" : event.source,
+      expected_event_id: event.id,
+      ticket_token: token,
+    });
+    if (error) throw error;
+    return data;
+  },
+
   async setAnnouncementStatus(announcementId, status) {
     const { data } = await unwrap(
       client()
@@ -289,7 +317,7 @@ export const clubAdminApi = {
   },
 
   async getPublicContent(clubId) {
-    const [profile, agendaEvents, clubEvents, announcements, board] = await Promise.all([
+    const [profile, agendaEvents, clubEvents, announcements, board, collaborationClubs] = await Promise.all([
       unwrap(
         client()
           .from("club_profiles")
@@ -323,7 +351,7 @@ export const clubAdminApi = {
           .eq("club_id", clubId)
           .eq("status", "published")
           .order("published_at", { ascending: false })
-          .limit(5)
+          .limit(50)
       ),
       optionalRows(
         client()
@@ -333,14 +361,24 @@ export const clubAdminApi = {
           .eq("active", true)
           .order("display_order", { ascending: true })
       ),
+      optionalRows(
+        client()
+          .from("club_profiles")
+          .select("id,name")
+          .eq("status", "active")
+      ),
     ]);
+    const clubNameMap = new Map(collaborationClubs.map((item) => [item.id, item.name]));
     return {
       profile: profile.data,
       events: [
         ...clubEvents.data,
         ...agendaEvents.map((event) => ({ ...event, event_type: event.tag || "Événement" })),
       ].sort((left, right) => new Date(left.starts_at) - new Date(right.starts_at)),
-      announcements: announcements.data,
+      announcements: announcements.data.map((item) => ({
+        ...item,
+        collaborator_names: (item.collaborator_club_ids || []).map((id) => clubNameMap.get(id)).filter(Boolean),
+      })),
       board,
     };
   },

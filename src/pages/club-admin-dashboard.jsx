@@ -10,13 +10,18 @@ import {
   Clock3,
   Eye,
   FileText,
+  Handshake,
+  History,
+  Images,
   LayoutDashboard,
   LoaderCircle,
   LogOut,
   Megaphone,
   Menu,
+  MapPin,
   Pencil,
   Send,
+  ScanLine,
   Settings2,
   Sparkles,
   Trash2,
@@ -33,6 +38,7 @@ import { clubAdminApi } from "@/services/clubAdminApi";
 import { uploadPublicImages } from "@/services/storageApi";
 import ImageUploadField from "@/components/ImageUploadField";
 import UserAvatar from "@/components/UserAvatar";
+import ClubEventScanner from "@/components/ClubEventScanner";
 import {
   cleanSocialLinks,
   clubSocialPlatforms,
@@ -46,7 +52,8 @@ const navigation = [
   { id: "profile", label: "Fiche du club", icon: Settings2 },
   { id: "board", label: "Membres du bureau", icon: UsersRound },
   { id: "events", label: "Événements", icon: CalendarDays },
-  { id: "announcements", label: "Annonces", icon: Megaphone },
+  { id: "attendance", label: "Contrôle QR", icon: ScanLine },
+  { id: "announcements", label: "Annonces & événements passés", icon: Megaphone },
   { id: "applications", label: "Candidatures", icon: ClipboardList },
   { id: "notifications", label: "Notifications", icon: BellRing },
 ];
@@ -186,10 +193,15 @@ export default function ClubAdminDashboardPage() {
   const [boardPhotoFiles, setBoardPhotoFiles] = useState([]);
   const [existingBoardPhoto, setExistingBoardPhoto] = useState([]);
   const [announcementForm, setAnnouncementForm] = useState({
+    content_type: "announcement",
     title: "",
     body: "",
+    event_date: "",
+    event_location: "",
+    collaborator_club_ids: [],
     status: "draft",
   });
+  const [announcementImageFiles, setAnnouncementImageFiles] = useState([]);
   const [notificationForm, setNotificationForm] = useState({ title: "", body: "" });
   const [showProfilePreview, setShowProfilePreview] = useState(false);
 
@@ -354,11 +366,27 @@ export default function ClubAdminDashboardPage() {
 
   const createAnnouncement = async (event) => {
     event.preventDefault();
-    const saved = await runAction(
-      () => clubAdminApi.createAnnouncement(access.club_id, announcementForm),
-      announcementForm.status === "published" ? "Annonce publiée sur la fiche du club." : "Brouillon d’annonce enregistré."
-    );
-    if (saved) setAnnouncementForm({ title: "", body: "", status: "draft" });
+    setBusy(true);
+    try {
+      const imageUrls = announcementForm.content_type === "event_recap"
+        ? await uploadPublicImages("club-media", announcementImageFiles)
+        : [];
+      await clubAdminApi.createAnnouncement(access.club_id, {
+        ...announcementForm,
+        event_date: announcementForm.content_type === "event_recap" && announcementForm.event_date ? announcementForm.event_date : null,
+        event_location: announcementForm.content_type === "event_recap" ? announcementForm.event_location.trim() || null : null,
+        collaborator_club_ids: announcementForm.content_type === "event_recap" ? announcementForm.collaborator_club_ids : [],
+        image_urls: imageUrls,
+      });
+      await loadDashboard();
+      setAnnouncementForm({ content_type: "announcement", title: "", body: "", event_date: "", event_location: "", collaborator_club_ids: [], status: "draft" });
+      setAnnouncementImageFiles([]);
+      setNotice({ type: "success", text: announcementForm.status === "published" ? "Publication ajoutée à la fiche du club." : "Brouillon enregistré." });
+    } catch (saveError) {
+      setNotice({ type: "error", text: saveError.message || "La publication n’a pas pu être enregistrée." });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const sendNotification = async (event) => {
@@ -598,13 +626,31 @@ export default function ClubAdminDashboardPage() {
                 </div>
               )}
 
+              {activeSection === "attendance" && (
+                <ClubEventScanner events={dashboard.events} onAttendanceChange={loadDashboard} />
+              )}
+
               {activeSection === "announcements" && (
                 <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
                   <form onSubmit={createAnnouncement} className="h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-                    <PanelTitle eyebrow="Communication" title="Nouvelle annonce" description="Informez les visiteurs de la fiche du club." />
-                    <div className="mt-7 space-y-4"><input className="portal-input" placeholder="Titre de l’annonce" value={announcementForm.title} onChange={(event) => setAnnouncementForm({ ...announcementForm, title: event.target.value })} required /><textarea className="portal-input min-h-36 resize-y" placeholder="Contenu de l’annonce" value={announcementForm.body} onChange={(event) => setAnnouncementForm({ ...announcementForm, body: event.target.value })} required /><select className="portal-select" value={announcementForm.status} onChange={(event) => setAnnouncementForm({ ...announcementForm, status: event.target.value })}><option value="draft">Enregistrer comme brouillon</option><option value="published">Publier maintenant</option></select><button type="submit" disabled={busy} className="portal-primary-button w-full"><Megaphone className="h-4 w-4" /> Enregistrer l’annonce</button></div>
+                    <PanelTitle eyebrow="Communication" title="Nouvelle publication" description="Publiez une annonce ou racontez un événement passé avec ses photos." />
+                    <div className="mt-7 space-y-5">
+                      <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
+                        <button type="button" onClick={() => setAnnouncementForm({ ...announcementForm, content_type: "announcement" })} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-black transition ${announcementForm.content_type === "announcement" ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}><Megaphone className="h-4 w-4" /> Annonce</button>
+                        <button type="button" onClick={() => setAnnouncementForm({ ...announcementForm, content_type: "event_recap" })} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-black transition ${announcementForm.content_type === "event_recap" ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500"}`}><History className="h-4 w-4" /> Événement passé</button>
+                      </div>
+                      <input className="portal-input" placeholder={announcementForm.content_type === "event_recap" ? "Titre de l’événement passé" : "Titre de l’annonce"} value={announcementForm.title} onChange={(event) => setAnnouncementForm({ ...announcementForm, title: event.target.value })} required />
+                      <textarea className="portal-input min-h-36 resize-y" placeholder={announcementForm.content_type === "event_recap" ? "Racontez l’événement, ses objectifs et ses temps forts…" : "Contenu de l’annonce"} value={announcementForm.body} onChange={(event) => setAnnouncementForm({ ...announcementForm, body: event.target.value })} required />
+                      {announcementForm.content_type === "event_recap" && <>
+                        <div className="grid gap-4 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-bold">Date de l’événement</span><input type="date" className="portal-input" value={announcementForm.event_date} onChange={(event) => setAnnouncementForm({ ...announcementForm, event_date: event.target.value })} required /></label><label><span className="mb-2 block text-sm font-bold">Lieu</span><input className="portal-input" placeholder="Campus ENIAD, Berkane…" value={announcementForm.event_location} onChange={(event) => setAnnouncementForm({ ...announcementForm, event_location: event.target.value })} required /></label></div>
+                        <ImageUploadField files={announcementImageFiles} onFilesChange={setAnnouncementImageFiles} maxFiles={8} label="Galerie de l’événement" help="Jusqu’à 8 photos depuis l’ordinateur, la galerie ou l’appareil photo" />
+                        <fieldset><legend className="text-sm font-bold text-slate-700">Clubs collaborateurs <span className="font-normal text-slate-400">- facultatif</span></legend><div className="mt-3 grid gap-2 sm:grid-cols-2">{(dashboard.collaborationClubs || []).map((item) => { const checked = announcementForm.collaborator_club_ids.includes(item.id); return <label key={item.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-sm font-semibold transition ${checked ? "border-cyan-300 bg-cyan-50 text-cyan-900" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}><input type="checkbox" checked={checked} onChange={() => setAnnouncementForm({ ...announcementForm, collaborator_club_ids: checked ? announcementForm.collaborator_club_ids.filter((id) => id !== item.id) : [...announcementForm.collaborator_club_ids, item.id] })} className="h-4 w-4 accent-cyan-600" />{item.name}</label>; })}</div></fieldset>
+                      </>}
+                      <select className="portal-select" value={announcementForm.status} onChange={(event) => setAnnouncementForm({ ...announcementForm, status: event.target.value })}><option value="draft">Enregistrer comme brouillon</option><option value="published">Publier maintenant</option></select>
+                      <button type="submit" disabled={busy} className="portal-primary-button w-full">{busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : announcementForm.content_type === "event_recap" ? <Images className="h-4 w-4" /> : <Megaphone className="h-4 w-4" />} Enregistrer la publication</button>
+                    </div>
                   </form>
-                  <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><PanelTitle eyebrow="Publications" title="Annonces du club" /><div className="mt-6 space-y-3">{dashboard.announcements.map((item) => <article key={item.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-start"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><FileText className="h-5 w-5" /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{item.title}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.status === "published" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{statusLabels[item.status]}</span></div><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{item.body}</p></div><button type="button" disabled={busy} onClick={() => runAction(() => clubAdminApi.setAnnouncementStatus(item.id, item.status === "published" ? "draft" : "published"), item.status === "published" ? "Annonce remise en brouillon." : "Annonce publiée.")} className="portal-secondary-button !py-2">{item.status === "published" ? "Dépublier" : "Publier"}</button></div></article>)}{!dashboard.announcements.length && <p className="portal-empty !py-10">Aucune annonce pour le moment.</p>}</div></section>
+                  <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><PanelTitle eyebrow="Publications" title="Annonces et événements passés" /><div className="mt-6 space-y-4">{dashboard.announcements.map((item) => { const collaborators = (dashboard.collaborationClubs || []).filter((clubItem) => (item.collaborator_club_ids || []).includes(clubItem.id)); return <article key={item.id} className="overflow-hidden rounded-2xl border border-slate-200">{item.image_urls?.length > 0 && <div className="grid h-44 grid-cols-3 gap-1 bg-slate-100">{item.image_urls.slice(0, 3).map((url, index) => <img key={url} src={url} alt={`${item.title} - photo ${index + 1}`} className={`h-full w-full object-cover ${item.image_urls.length === 1 ? "col-span-3" : item.image_urls.length === 2 && index === 0 ? "col-span-2" : ""}`} />)}</div>}<div className="p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-start"><span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${item.content_type === "event_recap" ? "bg-cyan-100 text-cyan-700" : "bg-violet-100 text-violet-700"}`}>{item.content_type === "event_recap" ? <Images className="h-5 w-5" /> : <FileText className="h-5 w-5" />}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{item.title}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.status === "published" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{statusLabels[item.status]}</span>{item.content_type === "event_recap" && <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700">Événement passé</span>}</div>{item.content_type === "event_recap" && <p className="mt-2 flex flex-wrap gap-3 text-xs font-semibold text-slate-500"><span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {formatDate(item.event_date)}</span><span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {item.event_location}</span></p>}<p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500">{item.body}</p>{collaborators.length > 0 && <p className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-cyan-700"><Handshake className="h-4 w-4" /> Avec {collaborators.map((collaborator) => collaborator.name).join(", ")}</p>}</div><button type="button" disabled={busy} onClick={() => runAction(() => clubAdminApi.setAnnouncementStatus(item.id, item.status === "published" ? "draft" : "published"), item.status === "published" ? "Publication remise en brouillon." : "Publication mise en ligne.")} className="portal-secondary-button !py-2">{item.status === "published" ? "Dépublier" : "Publier"}</button></div></div></article>; })}{!dashboard.announcements.length && <p className="portal-empty !py-10">Aucune publication pour le moment.</p>}</div></section>
                 </div>
               )}
 

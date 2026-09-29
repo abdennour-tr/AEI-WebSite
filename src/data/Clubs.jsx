@@ -1,7 +1,3 @@
-import galleryCampus from "../assets/events/event1.png";
-import galleryChallenge from "../assets/events/event2.png";
-import galleryMeetup from "../assets/events/event3.png";
-
 const clubs = [
   {
     id: "innoverse",
@@ -183,12 +179,6 @@ const clubs = [
   },
 ];
 
-const sharedBoard = [
-  { name: "Présidence", role: "Coordination générale", initials: "PR" },
-  { name: "Responsable activités", role: "Programme & événements", initials: "RA" },
-  { name: "Responsable communication", role: "Média & communauté", initials: "RC" },
-];
-
 const clubProfiles = {
   innoverse: {
     founded: "Club technologique",
@@ -201,10 +191,6 @@ const clubProfiles = {
     upcomingEvents: [
       { title: "Atelier API & microservices", date: "Date bientôt annoncée", location: "ENIAD — salle de projet", type: "Atelier" },
       { title: "Session de découverte des pôles", date: "Prochaine campagne", location: "Campus ENIAD", type: "Rencontre" },
-    ],
-    projects: [
-      { title: "TechConnect", description: "Rencontres techniques et partage d’expériences autour des métiers du numérique.", tag: "Communauté" },
-      { title: "ENIGMA Verse", description: "Challenge collaboratif mobilisant conception, développement et communication.", tag: "Challenge" },
     ],
   },
   nurlai: {
@@ -219,10 +205,6 @@ const clubProfiles = {
       { title: "Hands-on Lab Machine Learning", date: "Date bientôt annoncée", location: "Laboratoire informatique", type: "Laboratoire" },
       { title: "Rencontre Data Science", date: "Calendrier en préparation", location: "Campus ENIAD", type: "Échange" },
     ],
-    projects: [
-      { title: "Rise Her", description: "Initiative autour de l’inclusion, du partage d’expérience et de la place des étudiantes dans la tech.", tag: "Impact" },
-      { title: "Data Science Sessions", description: "Parcours progressif de découverte, préparation des données et modélisation.", tag: "Formation" },
-    ],
   },
   riot: {
     founded: "Club robotique & systèmes embarqués",
@@ -235,10 +217,6 @@ const clubProfiles = {
     upcomingEvents: [
       { title: "Initiation capteurs & microcontrôleurs", date: "Date bientôt annoncée", location: "Atelier ENIAD", type: "Formation" },
       { title: "Démonstration de prototypes", date: "Calendrier en préparation", location: "Hall du campus", type: "Démonstration" },
-    ],
-    projects: [
-      { title: "Formation avec InnoRobot", description: "Cycle d’initiation aux bases de la robotique et à la réalisation de prototypes.", tag: "Formation" },
-      { title: "Prototypage IoT", description: "Expérimentations autour des capteurs, de la collecte de données et des objets connectés.", tag: "Prototype" },
     ],
   },
   secora: {
@@ -253,10 +231,6 @@ const clubProfiles = {
       { title: "Initiation OSINT", date: "Date bientôt annoncée", location: "Salle informatique", type: "Atelier" },
       { title: "Entraînement CTF", date: "Calendrier en préparation", location: "Campus ENIAD", type: "Challenge" },
     ],
-    projects: [
-      { title: "CTF local ENIAD", description: "Challenges de cryptographie, investigation, web et sécurité réseau en équipe.", tag: "Compétition" },
-      { title: "Cyber Awareness", description: "Actions de sensibilisation aux risques numériques et aux bonnes pratiques.", tag: "Sensibilisation" },
-    ],
   },
   techrise: {
     founded: "Club innovation & carrière",
@@ -269,10 +243,6 @@ const clubProfiles = {
     upcomingEvents: [
       { title: "Rencontre métiers de l’ingénieur", date: "Date bientôt annoncée", location: "Amphithéâtre ENIAD", type: "Conférence" },
       { title: "Préparation Forum de l’Entreprise", date: "Campagne à venir", location: "Campus ENIAD", type: "Organisation" },
-    ],
-    projects: [
-      { title: "Forum de l’Entreprise ENIADB", description: "Rencontre entre étudiants, recruteurs et professionnels autour des métiers et opportunités.", tag: "Carrière" },
-      { title: "Ateliers carrière", description: "Sessions pratiques de préparation, communication professionnelle et découverte des métiers.", tag: "Compétences" },
     ],
   },
   enactus: {
@@ -287,10 +257,6 @@ const clubProfiles = {
       { title: "Découverte des projets actifs", date: "Date bientôt annoncée", location: "Campus ENIAD", type: "Présentation" },
       { title: "Atelier pitch & impact", date: "Calendrier en préparation", location: "Salle de projet", type: "Atelier" },
     ],
-    projects: [
-      { title: "Parcours projets à impact", description: "Identification de besoins, validation terrain et construction de solutions durables.", tag: "Impact social" },
-      { title: "Sessions de pitch", description: "Accompagnement à la présentation claire d’un problème, d’une solution et de son impact.", tag: "Entrepreneuriat" },
-    ],
   },
   "al-ataa": {
     founded: "Club solidarité & citoyenneté",
@@ -304,24 +270,14 @@ const clubProfiles = {
       { title: "Prochaine action solidaire", date: "Date bientôt annoncée", location: "Berkane", type: "Bénévolat" },
       { title: "Réunion des nouveaux bénévoles", date: "Calendrier en préparation", location: "Campus ENIAD", type: "Rencontre" },
     ],
-    projects: [
-      { title: "Campagne de don du sang", description: "Mobilisation et sensibilisation de la communauté autour du don du sang.", tag: "Santé" },
-      { title: "Actions de bénévolat", description: "Initiatives solidaires menées avec des associations et partenaires locaux.", tag: "Citoyenneté" },
-    ],
   },
 };
 
-const gallery = [
-  { src: galleryCampus, alt: "Illustration d’une journée associative étudiante", caption: "Vie associative sur le campus" },
-  { src: galleryChallenge, alt: "Illustration d’un challenge technologique", caption: "Challenges et apprentissage par la pratique" },
-  { src: galleryMeetup, alt: "Illustration d’une rencontre professionnelle", caption: "Rencontres, échanges et réseau" },
-];
-
-export default clubs.map((club) => ({
+const clubCatalog = clubs.map((club) => ({
   ...club,
   ...clubProfiles[club.id],
-  board: sharedBoard,
-  gallery,
   testimonials: [],
   socials: [{ label: "LinkedIn", url: club.contactUrl }],
 }));
+
+export default clubCatalog;
