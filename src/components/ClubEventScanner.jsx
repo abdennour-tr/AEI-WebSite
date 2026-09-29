@@ -3,6 +3,7 @@ import {
   Camera,
   CameraOff,
   CheckCircle2,
+  Clock3,
   ImageUp,
   LoaderCircle,
   QrCode,
@@ -13,6 +14,8 @@ import {
   Users,
 } from "lucide-react";
 import { clubAdminApi } from "@/services/clubAdminApi";
+
+const RESULT_DISPLAY_SECONDS = 5;
 
 function eventKey(event) {
   return `${event.source}:${event.id}`;
@@ -48,9 +51,11 @@ export default function ClubEventScanner({ events, onAttendanceChange }) {
   const [cameraRunning, setCameraRunning] = useState(false);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState(null);
+  const [resultSecondsRemaining, setResultSecondsRemaining] = useState(0);
   const [error, setError] = useState("");
 
   const selectedEvent = events.find((event) => eventKey(event) === selectedKey) || events[0] || null;
+  const selectedEventIdentity = selectedEvent ? eventKey(selectedEvent) : "";
 
   useEffect(() => {
     if (!selectedEvent && events[0]) setSelectedKey(eventKey(events[0]));
@@ -95,8 +100,31 @@ export default function ClubEventScanner({ events, onAttendanceChange }) {
     setResult(null);
     setError("");
     stopCamera();
+  }, [selectedEventIdentity, stopCamera]);
+
+  useEffect(() => {
     loadRegistrations();
-  }, [loadRegistrations, stopCamera]);
+  }, [loadRegistrations]);
+
+  useEffect(() => {
+    if (!result?.valid) {
+      setResultSecondsRemaining(0);
+      return undefined;
+    }
+
+    setResultSecondsRemaining(RESULT_DISPLAY_SECONDS);
+    const intervalId = window.setInterval(() => {
+      setResultSecondsRemaining((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    const timeoutId = window.setTimeout(() => {
+      setResult(null);
+    }, RESULT_DISPLAY_SECONDS * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [result]);
 
   useEffect(() => () => {
     if (scannerRef.current && runningRef.current) scannerRef.current.stop().catch(() => {});
@@ -190,7 +218,33 @@ export default function ClubEventScanner({ events, onAttendanceChange }) {
 
             {error && <div className="mt-5 flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
             {result && !result.valid && <div className="mt-5 flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" /><div><strong className="block">Billet refusé</strong><span className="mt-1 block">Cet étudiant n’est pas inscrit à l’événement sélectionné ou son inscription a été annulée.</span></div></div>}
-            {result?.valid && <div className={`mt-5 rounded-2xl border p-5 ${result.status === "already_checked_in" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}><div className="flex items-start gap-3"><CheckCircle2 className={`mt-0.5 h-6 w-6 shrink-0 ${result.status === "already_checked_in" ? "text-amber-600" : "text-emerald-600"}`} /><div><strong className="text-slate-950">{result.status === "already_checked_in" ? "Présence déjà validée" : "Présence confirmée"}</strong><p className="mt-1 text-lg font-black text-slate-950">{result.full_name}</p><p className="mt-1 text-sm text-slate-600">{[result.level, result.specialty].filter(Boolean).join(" - ") || result.email}</p><p className="mt-2 text-xs text-slate-500">{result.event_title}</p></div></div></div>}
+            {result?.valid && (
+              <div className={`mt-5 overflow-hidden rounded-2xl border ${result.status === "already_checked_in" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`} role="status" aria-live="polite">
+                <div className="p-5">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className={`mt-0.5 h-6 w-6 shrink-0 ${result.status === "already_checked_in" ? "text-amber-600" : "text-emerald-600"}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <strong className="text-slate-950">{result.status === "already_checked_in" ? "Présence déjà validée" : "Présence confirmée"}</strong>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black tabular-nums ${result.status === "already_checked_in" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                          <Clock3 className="h-3.5 w-3.5" /> {resultSecondsRemaining}s
+                        </span>
+                      </div>
+                      <p className="mt-1 text-lg font-black text-slate-950">{result.full_name}</p>
+                      <p className="mt-1 text-sm text-slate-600">{[result.level, result.specialty].filter(Boolean).join(" - ") || result.email}</p>
+                      <p className="mt-2 text-xs text-slate-500">{result.event_title}</p>
+                      <p className="mt-3 text-xs font-semibold text-slate-500">Ce résultat se fermera automatiquement après la fin du compte à rebours.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className={`h-1.5 ${result.status === "already_checked_in" ? "bg-amber-100" : "bg-emerald-100"}`}>
+                  <div
+                    className={`h-full transition-[width] duration-1000 ease-linear ${result.status === "already_checked_in" ? "bg-amber-500" : "bg-emerald-500"}`}
+                    style={{ width: `${(resultSecondsRemaining / RESULT_DISPLAY_SECONDS) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
