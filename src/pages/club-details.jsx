@@ -35,6 +35,7 @@ import { clubApplicationsApi } from "@/services/portalApi";
 import { clubAdminApi } from "@/services/clubAdminApi";
 import UserAvatar from "@/components/UserAvatar";
 import { listClubSocials } from "@/lib/clubSocials";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import ShareButton from "@/components/ShareButton";
 import ReportButton from "@/components/ReportButton";
 
@@ -141,6 +142,12 @@ export default function ClubDetailsPage() {
     availability: "",
     motivation: "",
   });
+  const { requireAuth } = useRequireAuth();
+
+  const openJoinForm = () => {
+    if (!requireAuth(`Connectez-vous pour envoyer une candidature à ${staticClub?.name || "ce club"}.`)) return;
+    setShowJoinForm(true);
+  };
 
   const club = useMemo(() => {
     if (!staticClub || !managedContent?.profile) return staticClub;
@@ -316,7 +323,7 @@ export default function ClubDetailsPage() {
                   <p className="mt-2 text-sm leading-6 text-slate-300">Présentez votre motivation au bureau en quelques minutes.</p>
                   <button
                     type="button"
-                    onClick={() => setShowJoinForm(true)}
+                    onClick={openJoinForm}
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-sky-400"
                   >
                     Demander à rejoindre <ArrowRight className="h-4 w-4" />
@@ -518,7 +525,7 @@ export default function ClubDetailsPage() {
                 <currentStatus.icon className="h-5 w-5" /> {currentStatus.label}
               </div>
             ) : (
-              <button type="button" onClick={() => setShowJoinForm(true)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-sky-800 transition hover:bg-sky-50">
+              <button type="button" onClick={openJoinForm} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-sky-800 transition hover:bg-sky-50">
                 <Send className="h-4 w-4" /> Demander à rejoindre
               </button>
             )}

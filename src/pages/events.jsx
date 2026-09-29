@@ -28,6 +28,7 @@ import {
   formatAgendaEvent,
   googleCalendarUrl,
 } from "@/services/agendaApi";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const fallbackAgenda = fallbackEvents.map(formatAgendaEvent);
 
@@ -106,6 +107,7 @@ function CalendarView({ events, month, onMonthChange, onSelect }) {
 }
 
 export default function EventsAndAgendaPage() {
+  const { requireAuth } = useRequireAuth();
   const { data: events, loading, setData } = usePortalCollection(loadAgenda, fallbackAgenda);
   const [period, setPeriod] = useState("all");
   const [club, setClub] = useState("Tous");
@@ -164,6 +166,7 @@ export default function EventsAndAgendaPage() {
   };
 
   const register = async () => {
+    if (!requireAuth("Connectez-vous pour vous inscrire à cet événement et recevoir votre billet.")) return;
     if (!selectedEvent || selectedEvent.source === "demo") {
       setActionError("Activez le module Agenda dans Supabase pour ouvrir les inscriptions.");
       return;

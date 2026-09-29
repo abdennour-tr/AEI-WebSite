@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 export default function OnboardingGate({ children }) {
   const { user } = useAuth();
 
+  if (!user) return children;
+
   if (!user?.user_metadata?.onboarding_completed) {
     return <Navigate to="/bienvenue" replace />;
   }

@@ -46,6 +46,7 @@ Dans **Supabase → SQL Editor**, exécuter les fichiers dans cet ordre :
 8. `supabase/16_club_accounts_board_and_events.sql` — comptes institutionnels, bureaux des clubs et rattachement des événements existants.
 9. `supabase/17_course_library_and_ai_summaries.sql` — gestion des PDF de cours et résumés pédagogiques générés avec Groq.
 10. `supabase/18_club_social_links.sql` — liens Instagram, Facebook, LinkedIn, YouTube, TikTok et site web propres à chaque club.
+11. `supabase/19_public_discovery.sql` — accès anonyme limité au fil d’actualités de l’accueil ; toutes les autres rubriques et interactions restent protégées par connexion.
 
 Chaque script doit terminer sans erreur avant de passer au suivant.
 

@@ -27,7 +27,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!session) {
-    return <Navigate to="/connexion" replace state={{ from: location }} />;
+    return <Navigate to="/" replace state={{ authModal: { destination: `${location.pathname}${location.search}${location.hash}`, reason: "Vous devez vous authentifier pour accéder à cette page." } }} />;
   }
 
   return children;

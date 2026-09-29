@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { CheckCircle2, Flag, LoaderCircle, X } from "lucide-react";
 import { reportContent } from "@/services/moderationApi";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const reasons = ["Contenu trompeur", "Comportement inapproprié", "Spam ou publicité abusive", "Atteinte à la vie privée", "Autre motif"];
 
 export default function ReportButton({ contentType, contentId, title, className = "portal-secondary-button" }) {
+  const { requireAuth } = useRequireAuth();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState(reasons[0]);
   const [details, setDetails] = useState("");
@@ -26,7 +28,7 @@ export default function ReportButton({ contentType, contentId, title, className 
   };
 
   return <>
-    <button type="button" onClick={() => { setOpen(true); setMessage(""); }} className={className}><Flag className="h-4 w-4" /> Signaler</button>
+    <button type="button" onClick={() => { if (!requireAuth("Connectez-vous pour signaler un contenu.")) return; setOpen(true); setMessage(""); }} className={className}><Flag className="h-4 w-4" /> Signaler</button>
     {open && <div className="portal-modal-backdrop" onMouseDown={() => !loading && setOpen(false)}>
       <section className="portal-modal max-w-lg" role="dialog" aria-modal="true" aria-labelledby="report-title" onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => setOpen(false)} className="absolute right-5 top-5 rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Fermer"><X className="h-5 w-5" /></button>

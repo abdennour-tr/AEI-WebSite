@@ -21,6 +21,7 @@ import { motion as Motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const welcomeMessage = {
   id: "welcome",
@@ -138,6 +139,7 @@ function formatMessageTime(value) {
 
 export default function ChatbotPage() {
   const { session } = useAuth();
+  const { requireAuth } = useRequireAuth();
   const [messages, setMessages] = useState([welcomeMessage]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -175,6 +177,7 @@ export default function ChatbotPage() {
   const handleSend = async (presetQuestion) => {
     const question = String(presetQuestion ?? input).trim();
     if (!question || sending) return;
+    if (!requireAuth("Connectez-vous pour interroger l’assistant IA du portail.")) return;
 
     const userMessage = {
       id: `user-${Date.now()}`,

@@ -97,6 +97,8 @@ async function setFavorite(table, foreignKey, recordId, favorite) {
 }
 
 async function listFavoriteIds(table, foreignKey) {
+  const { data: sessionData } = await client().auth.getSession();
+  if (!sessionData.session?.user) return [];
   const rows = await unwrap(client().from(table).select(foreignKey));
   return rows.map((row) => row[foreignKey]);
 }
@@ -400,14 +402,14 @@ export const projectsApi = {
 
 export const forumApi = {
   listTopics: async () => {
-    const [topics, replies, likes, profiles, userResult] = await Promise.all([
+    const { data: sessionData } = await client().auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    const [topics, replies, likes, profiles] = await Promise.all([
       listPublished("forum_topics"),
       unwrap(client().from("forum_replies").select("topic_id")),
-      unwrap(client().from("forum_likes").select("topic_id,user_id")),
+      unwrap(client().from("forum_likes").select(userId ? "topic_id,user_id" : "topic_id")),
       unwrap(client().from("public_profiles").select("user_id,display_name")),
-      client().auth.getUser(),
     ]);
-    const userId = userResult.data.user?.id;
     const names = new Map(profiles.map((profile) => [profile.user_id, profile.display_name]));
 
     return topics.map((row) => ({

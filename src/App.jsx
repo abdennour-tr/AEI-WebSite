@@ -1,12 +1,14 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Navigate, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import OnboardingGate from "./components/OnboardingGate";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ClubAdminRoute from "./components/ClubAdminRoute";
 import AdminRoute from "./components/AdminRoute";
 import { AuthProvider } from "./contexts/AuthContext";
+import { AuthModalProvider } from "./contexts/AuthModalProvider";
 
 import HomePage from "./pages/home";
+import StudentDashboardPage from "./pages/dashboard";
 import CoursPage from "./pages/cours";
 import FavoritePage from "./pages/favorite";
 import ChatbotAIPage from "./pages/chatbot";
@@ -20,7 +22,6 @@ import PublicitePage from "./pages/publs";
 import ColocationPage from "./pages/colocation";
 import MarketPlacePage from "./pages/marketplace";
 import ProfilePage from "./pages/profile";
-import ConnexionPage from "./pages/connexion";
 import ClubsPage from "./pages/clubs";
 import ClubDetailsPage from "./pages/club-details";
 import PublicProjectsPage from "./pages/projects";
@@ -35,12 +36,21 @@ import NotFoundPage from "./pages/not-found";
 import ServiceUnavailablePage from "./pages/service-unavailable";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+function StudentOnly({ children }) {
+  return (
+    <ProtectedRoute>
+      <OnboardingGate>{children}</OnboardingGate>
+    </ProtectedRoute>
+  );
+}
+
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          <Route path="/connexion" element={<ConnexionPage />} />
+        <AuthModalProvider>
+          <Routes>
+          <Route path="/connexion" element={<Navigate to="/" replace state={{ authModal: { destination: "/tableau-de-bord", reason: "Authentifiez-vous pour accéder à votre espace étudiant." } }} />} />
           <Route path="/club-admin/connexion" element={<ClubAdminLoginPage />} />
           <Route path="/admin" element={<AdminLoginPage />} />
           <Route path="/confidentialite" element={<LegalPage type="privacy" />} />
@@ -61,39 +71,31 @@ function App() {
             }
           />
 
-          <Route
-            element={
-              <ProtectedRoute>
-                <OnboardingGate>
-                  <ErrorBoundary>
-                    <Layout />
-                  </ErrorBoundary>
-                </OnboardingGate>
-              </ProtectedRoute>
-            }
-          >
+          <Route element={<OnboardingGate><ErrorBoundary><Layout /></ErrorBoundary></OnboardingGate>}>
             <Route path="/" element={<HomePage />} />
-            <Route path="/clubs" element={<ClubsPage />} />
-            <Route path="/clubs/:clubId" element={<ClubDetailsPage />} />
-            <Route path="/projets" element={<PublicProjectsPage />} />
-            <Route path="/projets/:projectId" element={<ProjectDetailsPage />} />
-            <Route path="/cours" element={<CoursPage />} />
-            <Route path="/favori" element={<FavoritePage />} />
-            <Route path="/chatbot" element={<ChatbotAIPage />} />
-            <Route path="/mes-annonces" element={<MyAnnoncePage />} />
-            <Route path="/evenements" element={<EventsPage />} />
-            <Route path="/evenements/confirmation" element={<EventConfirmationPage />} />
-            <Route path="/forum-communaute" element={<ForumPage />} />
-            <Route path="/stages-opportunites" element={<StagePage />} />
-            <Route path="/mes-projets" element={<ProjetsPage />} />
-            <Route path="/publicites" element={<PublicitePage />} />
-            <Route path="/colocation" element={<ColocationPage />} />
-            <Route path="/marketplace" element={<MarketPlacePage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/indisponible" element={<ServiceUnavailablePage embedded />} />
+            <Route path="/tableau-de-bord" element={<StudentOnly><StudentDashboardPage /></StudentOnly>} />
+            <Route path="/clubs" element={<StudentOnly><ClubsPage /></StudentOnly>} />
+            <Route path="/clubs/:clubId" element={<StudentOnly><ClubDetailsPage /></StudentOnly>} />
+            <Route path="/projets" element={<StudentOnly><PublicProjectsPage /></StudentOnly>} />
+            <Route path="/projets/:projectId" element={<StudentOnly><ProjectDetailsPage /></StudentOnly>} />
+            <Route path="/cours" element={<StudentOnly><CoursPage /></StudentOnly>} />
+            <Route path="/favori" element={<StudentOnly><FavoritePage /></StudentOnly>} />
+            <Route path="/chatbot" element={<StudentOnly><ChatbotAIPage /></StudentOnly>} />
+            <Route path="/mes-annonces" element={<StudentOnly><MyAnnoncePage /></StudentOnly>} />
+            <Route path="/evenements" element={<StudentOnly><EventsPage /></StudentOnly>} />
+            <Route path="/evenements/confirmation" element={<StudentOnly><EventConfirmationPage /></StudentOnly>} />
+            <Route path="/forum-communaute" element={<StudentOnly><ForumPage /></StudentOnly>} />
+            <Route path="/stages-opportunites" element={<StudentOnly><StagePage /></StudentOnly>} />
+            <Route path="/mes-projets" element={<StudentOnly><ProjetsPage /></StudentOnly>} />
+            <Route path="/publicites" element={<StudentOnly><PublicitePage /></StudentOnly>} />
+            <Route path="/colocation" element={<StudentOnly><ColocationPage /></StudentOnly>} />
+            <Route path="/marketplace" element={<StudentOnly><MarketPlacePage /></StudentOnly>} />
+            <Route path="/profile" element={<StudentOnly><ProfilePage /></StudentOnly>} />
+            <Route path="/indisponible" element={<StudentOnly><ServiceUnavailablePage embedded /></StudentOnly>} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
-        </Routes>
+          </Routes>
+        </AuthModalProvider>
       </AuthProvider>
     </Router>
   );

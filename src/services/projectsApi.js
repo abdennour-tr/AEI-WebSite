@@ -53,14 +53,15 @@ function normalizeProject(row, context = {}) {
 }
 
 async function loadContext() {
-  const user = await currentUser();
+  const { data: sessionData } = await client().auth.getSession();
+  const user = sessionData.session?.user || null;
   const [profiles, engagementRows] = await Promise.all([
     safeRows(client().from("public_profiles").select("user_id,display_name,avatar_url")),
-    safeRows(client().rpc("get_project_engagement")),
+    safeRows(client().rpc(user ? "get_project_engagement" : "get_public_project_engagement")),
   ]);
 
   return {
-    userId: user.id,
+    userId: user?.id || null,
     names: new Map(profiles.map((profile) => [profile.user_id, profile.display_name])),
     avatars: new Map(profiles.map((profile) => [profile.user_id, profile.avatar_url])),
     engagement: new Map(engagementRows.map((row) => [row.project_id, row])),
@@ -181,9 +182,17 @@ export const studentProjectsApi = {
   },
 
   async listComments(projectId) {
-    const comments = await unwrap(
-      client().rpc("get_project_comments", { target_project_id: projectId })
-    );
+    const { data: sessionData } = await client().auth.getSession();
+    const comments = sessionData.session?.user
+      ? await unwrap(client().rpc("get_project_comments", { target_project_id: projectId }))
+      : await unwrap(
+          client()
+            .from("project_comments")
+            .select("id,project_id,author_id,body,created_at")
+            .eq("project_id", projectId)
+            .eq("status", "published")
+            .order("created_at", { ascending: true })
+        );
     const profiles = await safeRows(
       client().from("public_profiles").select("user_id,display_name,avatar_url")
     );

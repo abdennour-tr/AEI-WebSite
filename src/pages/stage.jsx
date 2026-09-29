@@ -16,8 +16,10 @@ import fallbackOpportunities from "../data/Stage";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { opportunitiesApi } from "@/services/portalApi";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function StagePage() {
+  const { requireAuth } = useRequireAuth();
   const { data: offres, loading, error, setData } = usePortalCollection(
     opportunitiesApi.list,
     fallbackOpportunities
@@ -33,6 +35,7 @@ export default function StagePage() {
   const fav = offres.filter((offer) => offer.isFavorite).map((offer) => offer.id);
 
   const toggleFav = async (id) => {
+    if (!requireAuth("Connectez-vous pour ajouter cette opportunité à vos favoris.")) return;
     const wasFavorite = offres.find((offer) => offer.id === id)?.isFavorite ?? false;
     const willBeFavorite = !wasFavorite;
     setFavoriteError("");
@@ -262,7 +265,7 @@ export default function StagePage() {
             <p className="mt-4 leading-7 text-slate-600">{selected.description}</p>
 
             <div className="mt-4 md:mt-6 flex justify-end">
-              <button className="portal-primary-button">
+              <button onClick={() => requireAuth("Connectez-vous pour postuler à cette opportunité.")} className="portal-primary-button">
                 Postuler maintenant
               </button>
             </div>

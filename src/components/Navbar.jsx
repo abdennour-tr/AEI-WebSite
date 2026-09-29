@@ -9,12 +9,13 @@ import gestion from "../assets/icons/gestion-de-projet.png";
 import publicite from "../assets/icons/la-publicite.png";
 import stage from "../assets/icons/stage.png";
 import evenement from "../assets/icons/un-evenement.png";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogIn, LogOut, Menu, X } from "lucide-react";
 import Footer from "../components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import GlobalSearch from "@/components/GlobalSearch";
 import NotificationCenter from "@/components/NotificationCenter";
 import UserAvatar from "@/components/UserAvatar";
+import { useAuthModal } from "@/hooks/useAuthModal";
 
 function ScrollToTopDiv() {
   const { pathname, hash } = useLocation();
@@ -42,6 +43,7 @@ export default function MainNavigation({ children }) {
   const location = useLocation();
   const scrollRef = ScrollToTopDiv();
   const { user, profile: accountProfile, signOut } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const displayName =
     accountProfile?.full_name ||
     user?.user_metadata?.full_name ||
@@ -54,24 +56,37 @@ export default function MainNavigation({ children }) {
       name: "Mes annonces / Marketplace",
       image: colocation,
       to: "/mes-annonces",
+      requiresAuth: true,
     },
-    { name: "Mes favoris", image: favoris, to: "/favori" },
-    { name: "Mes projets déposés", image: gestion, to: "/mes-projets" },
+    { name: "Mes favoris", image: favoris, to: "/favori", requiresAuth: true },
+    { name: "Mes projets déposés", image: gestion, to: "/mes-projets", requiresAuth: true },
     { name: "Évènements / Agenda", image: evenement, to: "/evenements" },
     { name: "Stages & Opportunités", image: stage, to: "/stages-opportunites" },
     { name: "Forum / Communauté", image: communautes, to: "/forum-communaute" },
     { name: "Publicités", image: publicite, to: "/publicites" },
     { name: "Chatbot IA", image: chat, to: "/chatbot" },
   ];
+  const visibleMenuItems = menuItems.filter((item) => user || !item.requiresAuth);
 
   const topLinks = [
-    { name: "Tableau de bord", to: "/" },
+    { name: "Actualités", to: "/" },
+    ...(user ? [{ name: "Tableau de bord", to: "/tableau-de-bord" }] : []),
     { name: "Clubs", to: "/clubs" },
     { name: "Projets", to: "/projets" },
     { name: "Cours", to: "/cours" },
     { name: "Colocation", to: "/colocation" },
     { name: "Marketplace", to: "/marketplace" },
   ];
+
+  const protectNavigation = (event, to, label) => {
+    if (user || to === "/") return;
+    event.preventDefault();
+    setSidebarOpen(false);
+    openAuthModal({
+      destination: to,
+      reason: `Vous devez vous authentifier pour accéder à « ${label} ».`
+    });
+  };
 
   return (
     <div className="flex h-[100dvh] w-full min-w-0 overflow-hidden bg-slate-50">
@@ -96,29 +111,25 @@ export default function MainNavigation({ children }) {
 
         {/* Profil utilisateur */}
         <Link
-          to={"/profile"}
-          onClick={() => setSidebarOpen(false)}
+          to="/profile"
+          onClick={(event) => { protectNavigation(event, "/profile", "votre profil"); if (user) setSidebarOpen(false); }}
           className="mb-7 block rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:border-sky-200 hover:bg-sky-50/60"
         >
           <div className="flex items-center gap-3">
-            <UserAvatar
-              src={accountProfile?.avatar_url}
-              name={displayName}
-              className="h-12 w-12 rounded-xl ring-2 ring-white"
-            />
+            {user ? <UserAvatar src={accountProfile?.avatar_url} name={displayName} className="h-12 w-12 rounded-xl ring-2 ring-white" /> : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><LogIn className="h-5 w-5" /></span>}
             <div className="min-w-0">
               <h4 className="truncate text-sm font-bold text-slate-900">
-                {displayName}
+                {user ? displayName : "Espace étudiant"}
               </h4>
               <span className="mt-0.5 block text-[11px] font-bold uppercase tracking-wider text-sky-700">
-                Espace étudiant
+                {user ? "Profil personnel" : "Se connecter"}
               </span>
             </div>
           </div>
         </Link>
 
         {/* Top links (mobile / tablette) */}
-        <ul className="mb-6 space-y-1 border-b border-slate-200 pb-6 xl:hidden">
+        <ul className="mb-6 space-y-1 border-b border-slate-200 pb-6 2xl:hidden">
           {topLinks.map((link, index) => (
             <li
               key={index}
@@ -130,7 +141,7 @@ export default function MainNavigation({ children }) {
             >
               <Link
                 to={link.to}
-                onClick={() => setSidebarOpen(false)}
+                onClick={(event) => { protectNavigation(event, link.to, link.name); if (user || link.to === "/") setSidebarOpen(false); }}
                 className="block px-3 py-2.5 text-sm font-semibold"
               >
                 {link.name}
@@ -144,7 +155,7 @@ export default function MainNavigation({ children }) {
           Vie étudiante
         </p>
         <ul className="space-y-1">
-          {menuItems.map((item, index) => (
+          {visibleMenuItems.map((item, index) => (
             <li
               key={index}
               className={`rounded-xl transition ${
@@ -156,7 +167,7 @@ export default function MainNavigation({ children }) {
               <Link
                 to={item.to}
                 className="flex items-center gap-3 px-3 py-2.5"
-                onClick={() => setSidebarOpen(false)}
+                onClick={(event) => { protectNavigation(event, item.to, item.name); if (user) setSidebarOpen(false); }}
               >
                 {item.icon ? <item.icon className="h-5 w-5 text-sky-700" /> : <img src={item.image} alt="" className="h-5 w-5 opacity-80" />}
                 <span className="text-sm font-semibold">
@@ -184,11 +195,12 @@ export default function MainNavigation({ children }) {
           </div>
 
           {/* Navigation desktop */}
-          <nav className="hidden shrink-0 items-center gap-0 text-sm font-semibold xl:flex 2xl:gap-1">
+          <nav className="hidden shrink-0 items-center gap-1 text-sm font-semibold 2xl:flex">
             {topLinks.map((link, index) => (
               <Link
                 key={index}
                 to={link.to}
+                onClick={(event) => protectNavigation(event, link.to, link.name)}
                 className={`rounded-lg px-2 py-2 transition-colors 2xl:px-3 ${
                   location.pathname === link.to
                     ? "bg-sky-50 text-sky-700"
@@ -201,20 +213,11 @@ export default function MainNavigation({ children }) {
           </nav>
 
           <div className="ml-auto flex min-w-0 items-center 2xl:ml-2">
-            <GlobalSearch />
+            {user && <GlobalSearch />}
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-            <NotificationCenter />
-            <button
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-              onClick={async () => {
-                await signOut();
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Déconnexion</span>
-            </button>
+            {user ? <><NotificationCenter /><button className="inline-flex h-10 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100" onClick={async () => { await signOut(); }}><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Déconnexion</span></button></> : <button type="button" onClick={() => openAuthModal({ destination: "/tableau-de-bord", reason: "Authentifiez-vous pour accéder à votre espace étudiant." })} className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-950 px-3 text-sm font-bold text-white transition hover:bg-sky-800 sm:px-4"><LogIn className="h-4 w-4" /><span className="hidden min-[420px]:inline">Connexion</span></button>}
           </div>
         </header>
 

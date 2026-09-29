@@ -21,6 +21,7 @@ import { studentProjectsApi } from "@/services/projectsApi";
 import ShareButton from "@/components/ShareButton";
 import ReportButton from "@/components/ReportButton";
 import UserAvatar from "@/components/UserAvatar";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const stageLabels = {
   idea: "Idée validée",
@@ -31,6 +32,7 @@ const stageLabels = {
 
 export default function ProjectDetailsPage() {
   const { projectId } = useParams();
+  const { requireAuth } = useRequireAuth();
   const [project, setProject] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,7 @@ export default function ProjectDetailsPage() {
 
   const toggleInteraction = async (type) => {
     if (!project) return;
+    if (!requireAuth(type === "like" ? "Connectez-vous pour aimer ce projet." : "Connectez-vous pour ajouter ce projet à vos favoris.")) return;
     const key = type === "like" ? "isLiked" : "isFavorite";
     const next = !project[key];
     const snapshot = project;
@@ -96,6 +99,7 @@ export default function ProjectDetailsPage() {
 
   const submitComment = async (event) => {
     event.preventDefault();
+    if (!requireAuth("Connectez-vous pour publier un commentaire.")) return;
     if (comment.trim().length < 2) return;
     setCommentSaving(true);
     setActionError("");
@@ -114,6 +118,7 @@ export default function ProjectDetailsPage() {
 
   const submitJoinRequest = async (event) => {
     event.preventDefault();
+    if (!requireAuth("Connectez-vous pour proposer votre participation à ce projet.")) return;
     setJoinSaving(true);
     setActionError("");
     try {
@@ -239,7 +244,7 @@ export default function ProjectDetailsPage() {
               <h2 className="mt-3 text-2xl font-black">Rejoignez l’équipe</h2>
               <p className="mt-2 text-sm leading-6 text-sky-950/80">L’équipe recherche actuellement de nouveaux collaborateurs.</p>
               <div className="mt-4 flex flex-wrap gap-2">{(project.collaborator_roles || []).map((role) => <span key={role} className="rounded-full bg-white/60 px-2.5 py-1 text-xs font-bold">{role}</span>)}</div>
-              <button onClick={() => setJoinOpen(true)} disabled={project.joinRequestStatus === "submitted"} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-70">{project.joinRequestStatus === "submitted" ? <><CheckCircle2 className="h-4 w-4" /> Demande envoyée</> : <><Users className="h-4 w-4" /> Rejoindre le projet</>}</button>
+              <button onClick={() => { if (requireAuth("Connectez-vous pour rejoindre ce projet.")) setJoinOpen(true); }} disabled={project.joinRequestStatus === "submitted"} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-70">{project.joinRequestStatus === "submitted" ? <><CheckCircle2 className="h-4 w-4" /> Demande envoyée</> : <><Users className="h-4 w-4" /> Rejoindre le projet</>}</button>
             </section>
           )}
 

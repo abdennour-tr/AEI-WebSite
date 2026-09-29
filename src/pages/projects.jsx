@@ -19,6 +19,7 @@ import fallbackProjects from "@/data/my-projects";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { studentProjectsApi } from "@/services/projectsApi";
 import UserAvatar from "@/components/UserAvatar";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const stageMeta = {
   idea: { label: "Idée validée", className: "bg-amber-100 text-amber-800" },
@@ -64,6 +65,7 @@ function ProjectArtwork({ project, compact = false }) {
 }
 
 export default function PublicProjectsPage() {
+  const { requireAuth } = useRequireAuth();
   const { data: projects, loading, error, setData } = usePortalCollection(
     studentProjectsApi.list,
     fallbackProjects
@@ -108,6 +110,7 @@ export default function PublicProjectsPage() {
   const featuredProject = projects.find((project) => project.is_featured) || projects[0];
 
   const toggleInteraction = async (project, type) => {
+    if (!requireAuth(type === "like" ? "Connectez-vous pour aimer ce projet." : "Connectez-vous pour ajouter ce projet à vos favoris.")) return;
     const key = type === "like" ? "isLiked" : "isFavorite";
     const countKey = type === "like" ? "likesCount" : null;
     const next = !project[key];

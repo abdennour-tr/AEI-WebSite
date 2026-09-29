@@ -17,8 +17,10 @@ import fallbackDiscussions from "@/data/Discussions";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { forumApi } from "@/services/portalApi";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function ForumPage() {
+  const { requireAuth } = useRequireAuth();
   const { data: discussions, loading, error, setData } = usePortalCollection(
     forumApi.listTopics,
     fallbackDiscussions
@@ -29,6 +31,7 @@ export default function ForumPage() {
   const [likeError, setLikeError] = useState("");
 
   const toggleLike = async (discussion) => {
+    if (!requireAuth("Connectez-vous pour réagir à cette discussion.")) return;
     const nextLiked = !discussion.isLiked;
     setLikeError("");
     setData((items) =>

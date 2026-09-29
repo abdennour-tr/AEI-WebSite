@@ -21,6 +21,7 @@ import PageHeader from "@/components/PageHeader";
 import clubs from "@/data/Clubs";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { clubApplicationsApi, clubFavoritesApi } from "@/services/portalApi";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const iconMap = {
   code: Code2,
@@ -54,6 +55,7 @@ const categories = [
 ];
 
 export default function ClubsPage() {
+  const { requireAuth } = useRequireAuth();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tous");
   const [applications, setApplications] = useState([]);
@@ -91,6 +93,7 @@ export default function ClubsPage() {
   }, [category, search]);
 
   const toggleFavorite = async (club) => {
+    if (!requireAuth(`Connectez-vous pour ajouter ${club.name} à vos favoris.`)) return;
     const wasFavorite = favoriteIds.includes(club.id);
     setFavoriteError("");
     setFavoriteIds((current) =>

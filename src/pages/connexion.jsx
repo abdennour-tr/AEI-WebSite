@@ -13,6 +13,10 @@ export default function Connexion() {
   const { configured, session, signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const requestedLocation = location.state?.from;
+  const destination = requestedLocation
+    ? `${requestedLocation.pathname || "/"}${requestedLocation.search || ""}${requestedLocation.hash || ""}`
+    : "/tableau-de-bord";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,12 +36,11 @@ export default function Connexion() {
       return;
     }
 
-    const destination = location.state?.from?.pathname || "/";
     navigate(destination, { replace: true });
   };
 
   if (session) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={destination} replace />;
   }
 
   return (
@@ -52,6 +55,8 @@ export default function Connexion() {
         <p className="mb-8 mt-3 text-center text-sm leading-6 text-slate-500">
           Connectez-vous pour accéder à votre espace étudiant AEI.
         </p>
+
+        {location.state?.reason && <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center text-sm font-semibold leading-6 text-sky-800">{location.state.reason}</div>}
 
         {!configured && (
           <div className="mb-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">

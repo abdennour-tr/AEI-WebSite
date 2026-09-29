@@ -6,8 +6,10 @@ import fallbackAdvertisements from "../data/Publs";
 import PageHeader from "@/components/PageHeader";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { advertisementsApi } from "@/services/portalApi";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function PublicitePage() {
+  const { requireAuth } = useRequireAuth();
   const { data: publicites, loading, error, setData } = usePortalCollection(
     advertisementsApi.list,
     fallbackAdvertisements
@@ -24,6 +26,7 @@ export default function PublicitePage() {
     .map((advertisement) => advertisement.id);
 
   const toggleFav = async (id) => {
+    if (!requireAuth("Connectez-vous pour ajouter cette publicité à vos favoris.")) return;
     const wasFavorite =
       publicites.find((advertisement) => advertisement.id === id)?.isFavorite ?? false;
     const willBeFavorite = !wasFavorite;

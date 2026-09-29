@@ -2,189 +2,170 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  Bell,
-  BookOpen,
   CalendarDays,
-  CheckCircle2,
-  Clock3,
-  FolderGit2,
-  Heart,
+  ExternalLink,
+  LoaderCircle,
+  Megaphone,
+  Newspaper,
   Sparkles,
   UsersRound,
 } from "lucide-react";
 import clubs from "@/data/Clubs";
 import fallbackEvents from "@/data/Events";
-import LoadingSkeleton from "@/components/LoadingSkeleton";
-import EmptyState from "@/components/EmptyState";
+import fallbackAdvertisements from "@/data/Publs";
 import { useAuth } from "@/hooks/useAuth";
-import { agendaApi, formatAgendaEvent } from "@/services/agendaApi";
-import { clubApplicationsApi, favoritesApi, notificationsApi } from "@/services/portalApi";
+import { useAuthModal } from "@/hooks/useAuthModal";
+import { publicFeedApi } from "@/services/publicFeedApi";
 
-const quickActions = [
-  ["Découvrir les clubs", "Trouvez une équipe et candidatez", "/clubs", UsersRound, "bg-violet-50 text-violet-700"],
-  ["Consulter l’agenda", "Ateliers, conférences et compétitions", "/evenements", CalendarDays, "bg-sky-50 text-sky-700"],
-  ["Explorer les cours", "Supports et ressources pédagogiques", "/cours", BookOpen, "bg-emerald-50 text-emerald-700"],
-  ["Voir les projets", "Réalisations publiques des étudiants", "/projets", FolderGit2, "bg-amber-50 text-amber-700"],
-];
+function ProtectedHomeLink({ to, reason, children, ...props }) {
+  const { session } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  return <Link to={to} {...props} onClick={(event) => {
+    if (session) return;
+    event.preventDefault();
+    openAuthModal({ destination: to, reason });
+  }}>{children}</Link>;
+}
 
-const greeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Bonjour";
-  if (hour < 18) return "Bon après-midi";
-  return "Bonsoir";
-};
+function fallbackFeed() {
+  const clubPosts = clubs.slice(0, 4).map((club, index) => ({
+    id: `club-${club.id}`,
+    kind: "announcement",
+    label: "À la une des clubs",
+    author: club.name,
+    title: club.tagline,
+    description: club.description,
+    publishedAt: new Date(Date.now() - index * 86400000).toISOString(),
+    to: `/clubs/${club.id}`,
+  }));
+  const eventPosts = fallbackEvents.slice(0, 3).map((event, index) => ({
+    id: `fallback-event-${event.id || index}`,
+    kind: "event",
+    label: "Événement à venir",
+    author: event.organizer || "AEI ENIADB",
+    title: event.title,
+    description: event.description,
+    image: event.cover_url,
+    publishedAt: event.starts_at || new Date(Date.now() + index * 86400000).toISOString(),
+    location: event.location,
+    to: "/evenements",
+  }));
+  const adPosts = fallbackAdvertisements.slice(0, 2).map((advertisement, index) => ({
+    id: `fallback-ad-${advertisement.id || index}`,
+    kind: "advertisement",
+    label: "Bon plan partenaire",
+    author: "AEI ENIADB",
+    title: advertisement.titre || advertisement.title,
+    description: advertisement.description,
+    image: advertisement.image || advertisement.image_url,
+    externalUrl: advertisement.url || advertisement.target_url,
+    publishedAt: new Date(Date.now() - (index + 2) * 86400000).toISOString(),
+    to: "/publicites",
+  }));
+  return [...clubPosts, ...eventPosts, ...adPosts].sort(
+    (left, right) => new Date(right.publishedAt) - new Date(left.publishedAt)
+  );
+}
 
-function recommendClubs(metadata) {
-  const preferences = JSON.stringify(metadata?.onboarding || {}).toLocaleLowerCase("fr");
-  const scored = clubs.map((club) => {
-    const content = `${club.name} ${club.category} ${club.tagline} ${club.activities.join(" ")}`.toLocaleLowerCase("fr");
-    const keywords = preferences.split(/[^a-zà-ÿ0-9]+/).filter((word) => word.length > 3);
-    return { club, score: keywords.filter((word) => content.includes(word)).length };
-  });
-  return scored.sort((a, b) => b.score - a.score).slice(0, 3).map(({ club }) => club);
+function formatDate(value) {
+  if (!value) return "À l’instant";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function FeedCard({ item }) {
+  const initials = item.author
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60">
+      <div className="flex items-center gap-3 p-5 sm:px-6">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xs font-black text-cyan-300">{initials}</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-black text-slate-950">{item.author}</p>
+          <p className="mt-0.5 text-xs text-slate-400">{formatDate(item.publishedAt)}</p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-[11px] font-black ${item.kind === "event" ? "bg-violet-50 text-violet-700" : item.kind === "advertisement" ? "bg-amber-50 text-amber-700" : "bg-sky-50 text-sky-700"}`}>{item.label}</span>
+      </div>
+      {item.image && <img src={item.image} alt="" className="max-h-[34rem] w-full border-y border-slate-100 object-cover" />}
+      <div className="p-5 sm:px-6 sm:pb-6">
+        <h2 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">{item.title}</h2>
+        <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+        {item.location && <p className="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600"><CalendarDays className="h-4 w-4 text-violet-600" /> {item.location}</p>}
+        <div className="mt-5 flex flex-wrap gap-3 border-t border-slate-100 pt-5">
+          <ProtectedHomeLink to={item.to} reason={`Authentifiez-vous pour découvrir « ${item.title} ».`} className="portal-secondary-button !py-2.5">Découvrir <ArrowRight className="h-4 w-4" /></ProtectedHomeLink>
+          {item.externalUrl && <a href={item.externalUrl} target="_blank" rel="noreferrer" className="portal-primary-button !py-2.5">Voir le lien <ExternalLink className="h-4 w-4" /></a>}
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export default function HomePage() {
-  const { user, profile } = useAuth();
+  const { session } = useAuth();
+  const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [snapshot, setSnapshot] = useState({
-    favorites: [],
-    notifications: [],
-    applications: [],
-    events: fallbackEvents.map(formatAgendaEvent),
-  });
-  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "étudiant";
-  const recommendations = useMemo(() => recommendClubs(user?.user_metadata), [user?.user_metadata]);
+  const fallback = useMemo(() => fallbackFeed(), []);
 
   useEffect(() => {
     let active = true;
-    const loadDashboard = async () => {
-      const [favorites, notifications, applications, events] = await Promise.allSettled([
-        favoritesApi.list(),
-        notificationsApi.list(),
-        clubApplicationsApi.listMine(),
-        agendaApi.list(),
-      ]);
-      if (!active) return;
-      setSnapshot({
-        favorites: favorites.status === "fulfilled" ? favorites.value : [],
-        notifications: notifications.status === "fulfilled" ? notifications.value : [],
-        applications: applications.status === "fulfilled" ? applications.value : [],
-        events:
-          events.status === "fulfilled" && events.value.length
-            ? events.value
-            : fallbackEvents.map(formatAgendaEvent),
-      });
-      setLoading(false);
-    };
-    loadDashboard();
+    publicFeedApi
+      .list()
+      .then((items) => active && setFeed(items.length ? items : fallback))
+      .catch(() => active && setFeed(fallback))
+      .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, []);
-
-  const nextEvents = snapshot.events
-    .filter((event) => new Date(event.starts_at) >= new Date())
-    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
-    .slice(0, 3);
-  const unread = snapshot.notifications.filter((item) => !item.read_at).length;
-  const accepted = snapshot.applications.filter((item) => item.status === "accepted").length;
+  }, [fallback]);
 
   return (
     <div className="portal-page">
-      <section className="relative min-w-0 overflow-hidden rounded-2xl bg-slate-950 px-5 py-6 text-white shadow-xl sm:rounded-3xl sm:px-8 sm:py-9">
-        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-sky-500/15 blur-3xl" />
-        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1.5 text-xs font-bold text-sky-200">
-              <Sparkles className="h-3.5 w-3.5" /> Tableau de bord étudiant
-            </div>
-            <h1 className="mt-4 break-words text-2xl font-bold tracking-tight sm:text-4xl">
-              {greeting()}, {displayName}
-            </h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-slate-300">
-              Retrouvez vos prochaines activités, vos candidatures et les contenus qui correspondent à vos intérêts.
-            </p>
+      <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-6 py-10 text-white shadow-xl sm:px-10 lg:px-12 lg:py-14">
+        <div className="absolute -right-20 -top-28 h-80 w-80 rounded-full bg-sky-500/20 blur-3xl" />
+        <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
+        <div className="relative grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)] lg:items-end">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-200"><Sparkles className="h-4 w-4" /> La vie du campus, en direct</span>
+            <h1 className="mt-5 max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl">Actualités, clubs et opportunités de l’AEI ENIADB.</h1>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">Découvrez librement les nouveautés de l’association, les publications des clubs, les événements et les bons plans de la communauté.</p>
           </div>
-          <Link to="/profile" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-50 sm:w-auto sm:shrink-0">
-            Compléter mon profil <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+            <p className="text-sm leading-6 text-slate-300">{session ? "Retrouvez vos favoris, inscriptions et candidatures depuis votre espace personnel." : "Ce fil d’actualité est accessible librement. Une authentification est demandée pour ouvrir toutes les autres rubriques du portail."}</p>
+            <ProtectedHomeLink to="/tableau-de-bord" reason="Authentifiez-vous pour accéder à votre espace étudiant." className="portal-primary-button w-full !bg-cyan-300 !text-slate-950 hover:!bg-cyan-200">{session ? "Ouvrir mon tableau de bord" : "Se connecter à l’espace étudiant"} <ArrowRight className="h-4 w-4" /></ProtectedHomeLink>
+          </div>
         </div>
       </section>
 
-      {loading ? (
-        <LoadingSkeleton cards={4} />
-      ) : (
-        <>
-          <section className="grid min-w-0 grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-            {[
-              [snapshot.favorites.length, "favoris", Heart, "text-rose-600 bg-rose-50", "/favori"],
-              [nextEvents.length, "événements à venir", CalendarDays, "text-sky-700 bg-sky-50", "/evenements"],
-              [snapshot.applications.length, "candidatures clubs", CheckCircle2, "text-emerald-700 bg-emerald-50", "/clubs"],
-              [unread, "notifications non lues", Bell, "text-amber-700 bg-amber-50", "/favori"],
-            ].map(([value, label, Icon, color, to]) => (
-              <Link key={label} to={to} className="portal-panel group flex min-w-0 flex-col items-start gap-3 p-3 transition hover:border-sky-200 min-[430px]:flex-row min-[430px]:items-center sm:gap-4 sm:p-5">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${color}`}><Icon className="h-5 w-5" /></span>
-                <span className="min-w-0"><strong className="block text-xl font-bold text-slate-950 sm:text-2xl">{value}</strong><span className="mt-0.5 block break-words text-xs font-semibold leading-5 text-slate-500 sm:text-sm">{label}</span></span>
-              </Link>
-            ))}
-          </section>
+      <section className="grid gap-4 sm:grid-cols-3">
+        {[
+          { icon: <UsersRound className="h-5 w-5" />, title: "Clubs", description: "Découvrez les équipes, leurs activités et leurs projets.", to: "/clubs", tone: "bg-violet-50 text-violet-700" },
+          { icon: <CalendarDays className="h-5 w-5" />, title: "Agenda", description: "Consultez les événements ouverts à la communauté.", to: "/evenements", tone: "bg-sky-50 text-sky-700" },
+          { icon: <Megaphone className="h-5 w-5" />, title: "Bons plans", description: "Retrouvez les campagnes et annonces sélectionnées.", to: "/publicites", tone: "bg-amber-50 text-amber-700" },
+        ].map(({ icon, title, description, to, tone }) => (
+          <ProtectedHomeLink key={title} to={to} reason={`Authentifiez-vous pour accéder à la rubrique « ${title} ».`} className="portal-card group p-5 sm:p-6">
+            <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>{icon}</span>
+            <h2 className="mt-4 text-lg font-black text-slate-950">{title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
+            <span className="mt-4 inline-flex items-center gap-1 text-sm font-black text-sky-700">Explorer <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+          </ProtectedHomeLink>
+        ))}
+      </section>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
-            <section className="portal-panel">
-              <div className="flex flex-col items-start justify-between gap-2 min-[430px]:flex-row min-[430px]:items-center min-[430px]:gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">À votre agenda</p>
-                  <h2 className="mt-1 text-2xl font-bold text-slate-950">Prochains rendez-vous</h2>
-                </div>
-                <Link to="/evenements" className="text-sm font-bold text-sky-700 hover:text-sky-900">Agenda complet</Link>
-              </div>
-              {nextEvents.length ? (
-                <div className="mt-6 grid gap-3">
-                  {nextEvents.map((event) => (
-                    <Link key={`${event.source || "event"}-${event.id}`} to="/evenements" className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 p-3 transition hover:border-sky-200 hover:bg-sky-50/50 sm:gap-4 sm:p-4">
-                      <span className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-950 text-white"><strong className="text-lg leading-none">{event.dayNumber}</strong><span className="mt-1 text-[10px] font-bold text-sky-300">{event.monthShort}</span></span>
-                      <span className="min-w-0 flex-1"><strong className="block truncate text-slate-950">{event.title}</strong><span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-500 sm:text-sm"><Clock3 className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{event.timeLabel} · {event.organizer || "AEI ENIAD"}</span></span></span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-6"><EmptyState icon={CalendarDays} title="Aucun événement programmé" description="Consultez l’agenda plus tard ou explorez les clubs pour découvrir leurs prochaines activités." actionLabel="Explorer les clubs" to="/clubs" /></div>
-              )}
-            </section>
-
-            <section className="portal-panel">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Pour vous</p>
-              <h2 className="mt-1 text-2xl font-bold text-slate-950">Clubs recommandés</h2>
-              <div className="mt-6 space-y-3">
-                {recommendations.map((club) => (
-                  <Link key={club.id} to={`/clubs/${club.id}`} className="group flex items-center gap-3 rounded-2xl bg-slate-50 p-4 transition hover:bg-violet-50">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white font-bold text-violet-700 shadow-sm">{club.shortName.slice(0, 2)}</span>
-                    <span className="min-w-0 flex-1"><strong className="block truncate text-slate-950">{club.name}</strong><span className="mt-0.5 block truncate text-sm text-slate-500">{club.category}</span></span>
-                    <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-1" />
-                  </Link>
-                ))}
-              </div>
-              {accepted > 0 && <p className="mt-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">Vous êtes déjà accepté dans {accepted} club{accepted > 1 ? "s" : ""}.</p>}
-            </section>
-          </div>
-
-          <section>
-            <div className="mb-5"><p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">Accès rapide</p><h2 className="mt-1 text-2xl font-bold text-slate-950">Continuer votre parcours</h2></div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {quickActions.map(([title, description, to, Icon, color]) => (
-                <Link key={title} to={to} className="portal-card group p-5">
-                  <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></span>
-                  <h3 className="mt-5 font-bold text-slate-950">{title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
-                  <span className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-sky-700">Accéder <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
-                </Link>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div><p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-sky-700"><Newspaper className="h-4 w-4" /> Fil d’actualité</p><h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Les dernières nouvelles</h2></div>
+          <span className="hidden text-sm font-semibold text-slate-400 sm:block">Du plus récent au plus ancien</span>
+        </div>
+        {loading ? <div className="portal-empty flex items-center justify-center gap-2"><LoaderCircle className="h-5 w-5 animate-spin" /> Chargement des actualités…</div> : <div className="space-y-6">{feed.map((item) => <FeedCard key={item.id} item={item} />)}</div>}
+      </div>
     </div>
   );
 }

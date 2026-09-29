@@ -4,6 +4,8 @@
 alter table public.club_profiles
   add column if not exists social_links jsonb not null default '{}'::jsonb;
 
+grant update (social_links) on table public.club_profiles to authenticated;
+
 alter table public.club_profiles
   drop constraint if exists club_profiles_social_links_object;
 
