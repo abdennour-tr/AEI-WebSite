@@ -92,14 +92,13 @@ export default function AdminCoursesPanel() {
     let uploadedPath = "";
     try {
       let summary = form.mode === "course_with_summary" ? editing?.ai_summary || "" : "";
-      if (form.mode === "course_with_summary" && file) {
-        setNotice("Analyse du PDF et génération du résumé avec Groq…");
-        summary = await adminApi.generateCourseSummary(file, form.title);
-      }
-
       if (file) {
         setNotice("Téléversement sécurisé du support…");
         uploadedPath = await adminApi.uploadCourseFile(file);
+      }
+      if (form.mode === "course_with_summary" && uploadedPath) {
+        setNotice("Analyse du PDF et génération du résumé avec Groq…");
+        summary = await adminApi.generateCourseSummary(uploadedPath, form.title);
       }
 
       const payload = {

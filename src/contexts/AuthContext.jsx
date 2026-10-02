@@ -3,18 +3,36 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { AuthContext } from "@/contexts/auth-context";
 
 async function fetchAccountProfile(userId) {
-  const [{ data: privateProfile }, { data: publicProfile }] = await Promise.all([
+  const [{ data: privateProfile }, { data: publicProfile }, { data: clubManager }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase
       .from("public_profiles")
       .select("avatar_url")
       .eq("user_id", userId)
       .maybeSingle(),
+    supabase
+      .from("club_managers")
+      .select("club_id,manager_role")
+      .eq("user_id", userId)
+      .eq("active", true)
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   return privateProfile
-    ? { ...privateProfile, avatar_url: publicProfile?.avatar_url || null }
+    ? {
+        ...privateProfile,
+        avatar_url: publicProfile?.avatar_url || null,
+        is_club_manager: Boolean(clubManager),
+        managed_club_id: clubManager?.club_id || null,
+      }
     : null;
+}
+
+function portalAccessError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 export function AuthProvider({ children }) {
@@ -101,6 +119,76 @@ export function AuthProvider({ children }) {
         }
 
         return supabase.auth.signInWithPassword({ email, password });
+      },
+      async signInStudent(email, password) {
+        if (!supabase) {
+          return {
+            error: new Error(
+              "Supabase n’est pas encore configuré. Ajoutez les variables VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY."
+            ),
+          };
+        }
+
+        const signInResult = await supabase.auth.signInWithPassword({ email, password });
+        if (signInResult.error || !signInResult.data?.user?.id) return signInResult;
+
+        if (signInResult.data.user.user_metadata?.account_type === "club_manager") {
+          await supabase.auth.signOut();
+          return {
+            data: { user: null, session: null },
+            error: portalAccessError(
+              "Ce compte est réservé à l’espace des responsables de clubs. Utilisez la page de connexion dédiée.",
+              "club_manager_account"
+            ),
+          };
+        }
+
+        const userId = signInResult.data.user.id;
+        const [managerResult, profileResult] = await Promise.all([
+          supabase
+            .from("club_managers")
+            .select("club_id")
+            .eq("user_id", userId)
+            .eq("active", true)
+            .limit(1)
+            .maybeSingle(),
+          supabase.from("profiles").select("role").eq("id", userId).maybeSingle(),
+        ]);
+
+        if (managerResult.error || profileResult.error) {
+          await supabase.auth.signOut();
+          return {
+            data: { user: null, session: null },
+            error: portalAccessError(
+              "Impossible de vérifier l’autorisation de ce compte. Réessayez dans quelques instants.",
+              "portal_access_check_failed"
+            ),
+          };
+        }
+
+        if (managerResult.data) {
+          await supabase.auth.signOut();
+          return {
+            data: { user: null, session: null },
+            error: portalAccessError(
+              "Ce compte est réservé à l’espace des responsables de clubs. Utilisez la page de connexion dédiée.",
+              "club_manager_account"
+            ),
+          };
+        }
+
+        if (profileResult.data?.role !== "student") {
+          await supabase.auth.signOut();
+          return {
+            data: { user: null, session: null },
+            error: portalAccessError(
+              "Ce compte n’est pas autorisé à accéder au portail étudiant.",
+              "student_access_denied"
+            ),
+          };
+        }
+
+        return signInResult;
       },
       async signOut() {
         if (!supabase) return { error: null };

@@ -87,7 +87,11 @@ function FeedCard({ item }) {
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/60">
       <div className="flex items-center gap-3 p-5 sm:px-6">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xs font-black text-cyan-300">{initials}</span>
+        {item.authorImage ? (
+          <img src={item.authorImage} alt={`Logo de ${item.author}`} className="h-11 w-11 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain p-1" />
+        ) : (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xs font-black text-cyan-300">{initials}</span>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate font-black text-slate-950">{item.author}</p>
           <p className="mt-0.5 text-xs text-slate-400">{formatDate(item.publishedAt)}</p>

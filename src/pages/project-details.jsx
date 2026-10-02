@@ -178,7 +178,7 @@ export default function ProjectDetailsPage() {
           </div>
 
           <aside className="self-end rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Porté par</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Publié par</p>
             <div className="mt-3 flex items-center gap-3">
               <UserAvatar src={project.authorAvatar} name={project.author} className="h-11 w-11 rounded-xl ring-1 ring-white/15" />
               <p className="text-xl font-black">{project.author}</p>

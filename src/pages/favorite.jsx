@@ -20,6 +20,7 @@ import FavoriteCourses from "@/data/FavoriteCourses";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { favoritesApi } from "@/services/portalApi";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
+import UserAvatar from "@/components/UserAvatar";
 
 const fallbackFavorites = FavoriteCourses.map((course) => ({
   ...course,
@@ -91,7 +92,7 @@ const formatUpdateDate = (value) =>
 
 const getTitle = (item) => item.name || item.titre || item.title || "Favori";
 const getImage = (item) =>
-  item.image || item.img || item.cover || item.cover_url || item.screenshot_urls?.[0] || "";
+  item.image || item.img || item.cover || item.cover_url || item.logoUrl || item.logo_url || item.screenshot_urls?.[0] || "";
 
 function FavoriteCard({ item, index, onRemove }) {
   const meta = typeMeta[item.favoriteType];
@@ -165,6 +166,16 @@ function FavoriteCard({ item, index, onRemove }) {
             <strong className="text-base text-sky-700">
               {item.prix} DH{item.favoriteType === "housing" ? " / mois" : ""}
             </strong>
+          </div>
+        )}
+
+        {["project", "product", "housing"].includes(item.favoriteType) && item.author && (
+          <div className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
+            <UserAvatar src={item.authorAvatar} name={item.author} className="h-9 w-9 rounded-xl" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Publié par</p>
+              <p className="truncate text-sm font-bold text-slate-800">{item.author}</p>
+            </div>
           </div>
         )}
 

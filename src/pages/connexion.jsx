@@ -10,7 +10,7 @@ export default function Connexion() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const { configured, session, signIn } = useAuth();
+  const { configured, session, signInStudent } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const requestedLocation = location.state?.from;
@@ -24,7 +24,7 @@ export default function Connexion() {
     setSubmitting(true);
     setErrorMessage("");
 
-    const { error } = await signIn(email.trim(), password);
+    const { error } = await signInStudent(email.trim(), password);
 
     if (error) {
       setErrorMessage(

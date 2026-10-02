@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -17,7 +17,9 @@ import fallbackEvents from "@/data/Events";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/hooks/useAuth";
+import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { agendaApi, formatAgendaEvent } from "@/services/agendaApi";
+import { clubAdminApi } from "@/services/clubAdminApi";
 import { clubApplicationsApi, favoritesApi, notificationsApi } from "@/services/portalApi";
 
 const quickActions = [
@@ -34,9 +36,25 @@ const greeting = () => {
   return "Bonsoir";
 };
 
-function recommendClubs(metadata) {
+function mergeManagedClubs(managedProfiles) {
+  const managedById = new Map(managedProfiles.map((profile) => [profile.id, profile]));
+  return clubs.map((club) => {
+    const managed = managedById.get(club.id);
+    if (!managed) return club;
+    return {
+      ...club,
+      name: managed.name || club.name,
+      category: managed.category || club.category,
+      tagline: managed.tagline || club.tagline,
+      description: managed.description || club.description,
+      logoUrl: managed.logo_url || "",
+    };
+  });
+}
+
+function recommendClubs(metadata, clubCatalog) {
   const preferences = JSON.stringify(metadata?.onboarding || {}).toLocaleLowerCase("fr");
-  const scored = clubs.map((club) => {
+  const scored = clubCatalog.map((club) => {
     const content = `${club.name} ${club.category} ${club.tagline} ${club.activities.join(" ")}`.toLocaleLowerCase("fr");
     const keywords = preferences.split(/[^a-zà-ÿ0-9]+/).filter((word) => word.length > 3);
     return { club, score: keywords.filter((word) => content.includes(word)).length };
@@ -46,6 +64,7 @@ function recommendClubs(metadata) {
 
 export default function StudentDashboardPage() {
   const { user, profile } = useAuth();
+  const { data: managedProfiles } = usePortalCollection(clubAdminApi.listProfiles, []);
   const [loading, setLoading] = useState(true);
   const [snapshot, setSnapshot] = useState({
     favorites: [],
@@ -54,7 +73,11 @@ export default function StudentDashboardPage() {
     events: fallbackEvents.map(formatAgendaEvent),
   });
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "étudiant";
-  const recommendations = useMemo(() => recommendClubs(user?.user_metadata), [user?.user_metadata]);
+  const clubCatalog = useMemo(() => mergeManagedClubs(managedProfiles), [managedProfiles]);
+  const recommendations = useMemo(
+    () => recommendClubs(user?.user_metadata, clubCatalog),
+    [clubCatalog, user?.user_metadata]
+  );
 
   useEffect(() => {
     let active = true;
@@ -124,7 +147,7 @@ export default function StudentDashboardPage() {
               [unread, "notifications non lues", Bell, "text-amber-700 bg-amber-50", "/favori"],
             ].map(([value, label, Icon, color, to]) => (
               <Link key={label} to={to} className="portal-panel group flex min-w-0 flex-col items-start gap-3 p-3 transition hover:border-sky-200 min-[430px]:flex-row min-[430px]:items-center sm:gap-4 sm:p-5">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${color}`}><Icon className="h-5 w-5" /></span>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${color}`}>{createElement(Icon, { className: "h-5 w-5" })}</span>
                 <span className="min-w-0"><strong className="block text-xl font-bold text-slate-950 sm:text-2xl">{value}</strong><span className="mt-0.5 block break-words text-xs font-semibold leading-5 text-slate-500 sm:text-sm">{label}</span></span>
               </Link>
             ))}
@@ -160,7 +183,11 @@ export default function StudentDashboardPage() {
               <div className="mt-6 space-y-3">
                 {recommendations.map((club) => (
                   <Link key={club.id} to={`/clubs/${club.id}`} className="group flex items-center gap-3 rounded-2xl bg-slate-50 p-4 transition hover:bg-violet-50">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white font-bold text-violet-700 shadow-sm">{club.shortName.slice(0, 2)}</span>
+                    {club.logoUrl ? (
+                      <img src={club.logoUrl} alt={`Logo de ${club.name}`} className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1 shadow-sm" />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white font-bold text-violet-700 shadow-sm">{club.shortName.slice(0, 2)}</span>
+                    )}
                     <span className="min-w-0 flex-1"><strong className="block truncate text-slate-950">{club.name}</strong><span className="mt-0.5 block truncate text-sm text-slate-500">{club.category}</span></span>
                     <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-1" />
                   </Link>
@@ -175,7 +202,7 @@ export default function StudentDashboardPage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {quickActions.map(([title, description, to, Icon, color]) => (
                 <Link key={title} to={to} className="portal-card group p-5">
-                  <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5" /></span>
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${color}`}>{createElement(Icon, { className: "h-5 w-5" })}</span>
                   <h3 className="mt-5 font-bold text-slate-950">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
                   <span className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-sky-700">Accéder <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>

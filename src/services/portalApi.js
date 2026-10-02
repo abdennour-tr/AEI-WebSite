@@ -136,22 +136,44 @@ async function mapCourseWithDownload(row) {
   return { ...mapped, pdf: error ? mapped.pdf : data.signedUrl };
 }
 
-const mapHousing = (row) => ({
-  ...row,
-  titre: row.title,
-  nom: "Membre AEI",
-  avatar: null,
-  cover: row.image_urls?.[0] || null,
-  image: row.image_urls?.[0] || null,
-  ville: row.city,
-  prix: row.monthly_price,
-  desc: row.description,
-  type: row.property_type,
-  posted: daysAgo(row.created_at),
-});
+const publicationAuthor = (row, authorId, profiles = new Map()) => {
+  const profile = profiles.get(authorId);
+  const displayName = profile?.display_name?.trim();
 
-const mapProduct = (row) => ({
+  return {
+    author: displayName || row.author || row.nom || "Nom non renseigné",
+    authorAvatar: profile?.avatar_url || row.authorAvatar || row.avatar || null,
+  };
+};
+
+async function loadPublicProfiles() {
+  const rows = await unwrap(
+    client().from("public_profiles").select("user_id,display_name,avatar_url")
+  );
+  return new Map(rows.map((profile) => [profile.user_id, profile]));
+}
+
+const mapHousing = (row, profiles) => {
+  const author = publicationAuthor(row, row.owner_id, profiles);
+  return {
+    ...row,
+    ...author,
+    titre: row.title,
+    nom: author.author,
+    avatar: author.authorAvatar,
+    cover: row.image_urls?.[0] || null,
+    image: row.image_urls?.[0] || null,
+    ville: row.city,
+    prix: row.monthly_price,
+    desc: row.description,
+    type: row.property_type,
+    posted: daysAgo(row.created_at),
+  };
+};
+
+const mapProduct = (row, profiles) => ({
   ...row,
+  ...publicationAuthor(row, row.seller_id, profiles),
   titre: row.title,
   prix: row.price,
   img: row.image_urls?.[0] || null,
@@ -197,7 +219,7 @@ export const coursesApi = {
 
 export const housingApi = {
   list: async () => {
-    const [rows, favoriteIds] = await Promise.all([
+    const [rows, favoriteIds, profiles] = await Promise.all([
       unwrap(
         client()
           .from("housing_listings")
@@ -207,42 +229,56 @@ export const housingApi = {
           .order("created_at", { ascending: false })
       ),
       listFavoriteIds("housing_favorites", "housing_id").catch(() => []),
+      loadPublicProfiles(),
     ]);
     const favorites = new Set(favoriteIds);
     return rows.map((row) => ({
-      ...mapHousing(row),
+      ...mapHousing(row, profiles),
       isFavorite: favorites.has(row.id),
     }));
   },
-  listFavorites: async () =>
-    unwrap(
+  listFavorites: async () => {
+    const [rows, profiles] = await Promise.all([
+      unwrap(
       client()
         .from("housing_favorites")
         .select("created_at, housing:housing_listings!inner(*)")
         .eq("housing.status", "active")
         .eq("housing.moderation_status", "approved")
         .order("created_at", { ascending: false })
-    ).then((rows) =>
-      rows
+      ),
+      loadPublicProfiles(),
+    ]);
+    return rows
         .filter((row) => row.housing)
         .map((row) => ({
-          ...mapHousing(row.housing),
+          ...mapHousing(row.housing, profiles),
           favoriteCreatedAt: row.created_at,
-        }))
-    ),
+        }));
+  },
   setFavorite: (housingId, favorite) =>
     setFavorite("housing_favorites", "housing_id", housingId, favorite),
-  listMine: async () =>
-    (await listOwned("housing_listings", "owner_id")).map(mapHousing),
-  create: async (payload) => mapHousing(await createRecord("housing_listings", payload)),
-  update: async (id, payload) =>
-    mapHousing(await updateRecord("housing_listings", id, payload)),
+  listMine: async () => {
+    const [rows, profiles] = await Promise.all([
+      listOwned("housing_listings", "owner_id"),
+      loadPublicProfiles(),
+    ]);
+    return rows.map((row) => mapHousing(row, profiles));
+  },
+  create: async (payload) => {
+    const row = await createRecord("housing_listings", payload);
+    return mapHousing(row, await loadPublicProfiles());
+  },
+  update: async (id, payload) => {
+    const row = await updateRecord("housing_listings", id, payload);
+    return mapHousing(row, await loadPublicProfiles());
+  },
   remove: (id) => deleteRecord("housing_listings", id),
 };
 
 export const marketplaceApi = {
   list: async () => {
-    const [rows, favoriteIds] = await Promise.all([
+    const [rows, favoriteIds, profiles] = await Promise.all([
       unwrap(
         client()
           .from("marketplace_products")
@@ -252,29 +288,33 @@ export const marketplaceApi = {
           .order("created_at", { ascending: false })
       ),
       listFavoriteIds("marketplace_product_favorites", "product_id").catch(() => []),
+      loadPublicProfiles(),
     ]);
     const favorites = new Set(favoriteIds);
     return rows.map((row) => ({
-      ...mapProduct(row),
+      ...mapProduct(row, profiles),
       isFavorite: favorites.has(row.id),
     }));
   },
-  listFavorites: async () =>
-    unwrap(
+  listFavorites: async () => {
+    const [rows, profiles] = await Promise.all([
+      unwrap(
       client()
         .from("marketplace_product_favorites")
         .select("created_at, product:marketplace_products!inner(*)")
         .eq("product.status", "active")
         .eq("product.moderation_status", "approved")
         .order("created_at", { ascending: false })
-    ).then((rows) =>
-      rows
+      ),
+      loadPublicProfiles(),
+    ]);
+    return rows
         .filter((row) => row.product)
         .map((row) => ({
-          ...mapProduct(row.product),
+          ...mapProduct(row.product, profiles),
           favoriteCreatedAt: row.created_at,
-        }))
-    ),
+        }));
+  },
   setFavorite: (productId, favorite) =>
     setFavorite(
       "marketplace_product_favorites",
@@ -282,10 +322,21 @@ export const marketplaceApi = {
       productId,
       favorite
     ),
-  listMine: async () =>
-    (await listOwned("marketplace_products", "seller_id")).map(mapProduct),
-  create: async (payload) => mapProduct(await createRecord("marketplace_products", payload)),
-  update: async (id, payload) => mapProduct(await updateRecord("marketplace_products", id, payload)),
+  listMine: async () => {
+    const [rows, profiles] = await Promise.all([
+      listOwned("marketplace_products", "seller_id"),
+      loadPublicProfiles(),
+    ]);
+    return rows.map((row) => mapProduct(row, profiles));
+  },
+  create: async (payload) => {
+    const row = await createRecord("marketplace_products", payload);
+    return mapProduct(row, await loadPublicProfiles());
+  },
+  update: async (id, payload) => {
+    const row = await updateRecord("marketplace_products", id, payload);
+    return mapProduct(row, await loadPublicProfiles());
+  },
   remove: (id) => deleteRecord("marketplace_products", id),
 };
 
@@ -369,7 +420,7 @@ export const projectsApi = {
       desc: row.description,
       tech: row.tech_stack?.join(" / ") || "",
       updated: formatDate(row.updated_at),
-      author: names.get(row.owner_id) || "Étudiant ENIAD",
+      author: names.get(row.owner_id) || "Nom non renseigné",
     }));
   },
   listMine: async () =>
@@ -414,7 +465,7 @@ export const forumApi = {
 
     return topics.map((row) => ({
       ...row,
-      author: names.get(row.author_id) || "Membre AEI",
+      author: names.get(row.author_id) || "Nom non renseigné",
       replies: replies.filter((reply) => reply.topic_id === row.id).length,
       likes: likes.filter((like) => like.topic_id === row.id).length,
       isLiked: likes.some(
@@ -484,19 +535,34 @@ export const advertisementsApi = {
 export const clubFavoritesApi = {
   listIds: () => listFavoriteIds("club_favorites", "club_id"),
   listFavorites: async () => {
-    const rows = await unwrap(
-      client()
-        .from("club_favorites")
-        .select("club_id,created_at")
-        .order("created_at", { ascending: false })
-    );
+    const [rows, profiles] = await Promise.all([
+      unwrap(
+        client()
+          .from("club_favorites")
+          .select("club_id,created_at")
+          .order("created_at", { ascending: false })
+      ),
+      unwrap(client().from("club_profiles").select("*")),
+    ]);
     const clubMap = new Map(clubs.map((club) => [club.id, club]));
+    const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
     return rows
       .filter((row) => clubMap.has(row.club_id))
-      .map((row) => ({
-        ...clubMap.get(row.club_id),
-        favoriteCreatedAt: row.created_at,
-      }));
+      .map((row) => {
+        const club = clubMap.get(row.club_id);
+        const profile = profileMap.get(row.club_id);
+        return {
+          ...club,
+          ...(profile ? {
+            name: profile.name || club.name,
+            category: profile.category || club.category,
+            tagline: profile.tagline || club.tagline,
+            description: profile.description || club.description,
+            logoUrl: profile.logo_url || "",
+          } : {}),
+          favoriteCreatedAt: row.created_at,
+        };
+      });
   },
   setFavorite: (clubId, favorite) =>
     setFavorite("club_favorites", "club_id", clubId, favorite),

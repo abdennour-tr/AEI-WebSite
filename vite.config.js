@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import portalWorker from "./server/worker.js";
 import { handleReportNotification } from "./api/report-notification.js";
 import { handleCourseSummary } from "./api/course-summary.js";
+import { handleAdminUser } from "./api/admin-user.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -77,6 +78,27 @@ function portalApiDevPlugin(environment) {
         webResponse.headers.forEach((value, name) => response.setHeader(name, value));
         response.end(Buffer.from(await webResponse.arrayBuffer()));
       });
+
+      server.middlewares.use("/api/admin-user", async (request, response) => {
+        const chunks = [];
+        for await (const chunk of request) chunks.push(chunk);
+
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(request.headers)) {
+          if (Array.isArray(value)) value.forEach((item) => headers.append(name, item));
+          else if (value !== undefined) headers.set(name, value);
+        }
+
+        const webRequest = new Request("http://localhost/api/admin-user", {
+          method: request.method,
+          headers,
+          body: chunks.length ? Buffer.concat(chunks) : undefined,
+        });
+        const webResponse = await handleAdminUser(webRequest, environment);
+        response.statusCode = webResponse.status;
+        webResponse.headers.forEach((value, name) => response.setHeader(name, value));
+        response.end(Buffer.from(await webResponse.arrayBuffer()));
+      });
     },
   };
 }
@@ -101,6 +123,8 @@ export default defineConfig(({ mode }) => {
           process.env.REPORTS_FROM_EMAIL || localEnvironment.REPORTS_FROM_EMAIL,
         ADMIN_REPORT_EMAIL:
           process.env.ADMIN_REPORT_EMAIL || localEnvironment.ADMIN_REPORT_EMAIL,
+        SUPABASE_SERVICE_ROLE_KEY:
+          process.env.SUPABASE_SERVICE_ROLE_KEY || localEnvironment.SUPABASE_SERVICE_ROLE_KEY,
       }),
       tailwindcss(),
       react(),

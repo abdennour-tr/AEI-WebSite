@@ -4,6 +4,7 @@ import {
   Bot,
   BrainCircuit,
   Code2,
+  Dumbbell,
   ExternalLink,
   HandHeart,
   Heart,
@@ -21,6 +22,7 @@ import PageHeader from "@/components/PageHeader";
 import clubs from "@/data/Clubs";
 import { usePortalCollection } from "@/hooks/usePortalCollection";
 import { clubApplicationsApi, clubFavoritesApi } from "@/services/portalApi";
+import { clubAdminApi } from "@/services/clubAdminApi";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const iconMap = {
@@ -31,6 +33,7 @@ const iconMap = {
   rocket: Rocket,
   lightbulb: Lightbulb,
   heart: HandHeart,
+  sport: Dumbbell,
 };
 
 const accentMap = {
@@ -52,6 +55,8 @@ const categories = [
   "Innovation & carrière",
   "Entrepreneuriat social",
   "Solidarité & citoyenneté",
+  "Engagement & leadership",
+  "Sport & bien-être",
 ];
 
 export default function ClubsPage() {
@@ -60,6 +65,7 @@ export default function ClubsPage() {
   const [category, setCategory] = useState("Tous");
   const [applications, setApplications] = useState([]);
   const [favoriteError, setFavoriteError] = useState("");
+  const { data: managedProfiles } = usePortalCollection(clubAdminApi.listProfiles, []);
   const { data: favoriteIds, setData: setFavoriteIds } = usePortalCollection(
     clubFavoritesApi.listIds,
     []
@@ -78,9 +84,24 @@ export default function ClubsPage() {
     };
   }, []);
 
+  const displayedClubs = useMemo(() => {
+    const profiles = new Map(managedProfiles.map((profile) => [profile.id, profile]));
+    return clubs.map((club) => {
+      const profile = profiles.get(club.id);
+      return profile ? {
+        ...club,
+        name: profile.name || club.name,
+        category: profile.category || club.category,
+        tagline: profile.tagline || club.tagline,
+        description: profile.description || club.description,
+        logoUrl: profile.logo_url || "",
+      } : club;
+    });
+  }, [managedProfiles]);
+
   const filteredClubs = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("fr");
-    return clubs.filter((club) => {
+    return displayedClubs.filter((club) => {
       const matchesCategory = category === "Tous" || club.category === category;
       const matchesSearch =
         !query ||
@@ -90,7 +111,7 @@ export default function ClubsPage() {
           .includes(query);
       return matchesCategory && matchesSearch;
     });
-  }, [category, search]);
+  }, [category, displayedClubs, search]);
 
   const toggleFavorite = async (club) => {
     if (!requireAuth(`Connectez-vous pour ajouter ${club.name} à vos favoris.`)) return;
@@ -148,7 +169,7 @@ export default function ClubsPage() {
           </p>
         </div>
         <div className="rounded-2xl bg-sky-700 p-6 text-white shadow-lg shadow-sky-100">
-          <p className="text-4xl font-bold">{clubs.length}</p>
+          <p className="text-4xl font-bold">{displayedClubs.length}</p>
           <p className="mt-1 font-semibold">clubs recensés</p>
           <p className="mt-3 text-sm leading-6 text-sky-100">
             Technologie, IA, robotique, sécurité, entrepreneuriat et solidarité.
@@ -180,7 +201,7 @@ export default function ClubsPage() {
 
       <section aria-label="Annuaire des clubs" className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {filteredClubs.map((club, index) => {
-          const Icon = iconMap[club.icon];
+          const Icon = iconMap[club.icon] || UsersRound;
           const application = applications.find(
             (item) => item.club_id === club.id
           );
@@ -193,9 +214,7 @@ export default function ClubsPage() {
               className="portal-card flex h-full flex-col p-6"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${accentMap[club.accent]}`}>
-                  <Icon className="h-6 w-6" />
-                </div>
+                {club.logoUrl ? <img src={club.logoUrl} alt={`Logo de ${club.name}`} className="h-12 w-12 rounded-2xl border border-slate-200 bg-white object-contain p-1.5 shadow-sm" /> : <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${accentMap[club.accent]}`}><Icon className="h-6 w-6" /></div>}
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                     {club.category}

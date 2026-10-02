@@ -183,35 +183,27 @@ export default function ColocationPage() {
               </button>
             </div>
 
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <UserAvatar src={annonce.avatar} name={annonce.nom} className="h-12 w-12 rounded-full border border-gray-300 shadow-sm" />
-                <div>
-                  <h2 className="text-base font-bold text-slate-950">
-                    {annonce.nom}
-                  </h2>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                    <MapPin className="h-3.5 w-3.5" /> {annonce.ville}
-                  </p>
+            <div className="flex h-full flex-col p-6">
+              <span className="portal-badge w-fit">{annonce.type}</span>
+              <h2 className="mt-4 text-xl font-black leading-snug text-slate-950">
+                {annonce.titre || `${annonce.type} à ${annonce.ville}`}
+              </h2>
+              <div className="mt-2 text-2xl font-black text-sky-700">{annonce.prix} DH / mois</div>
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
+                <MapPin className="h-4 w-4 text-sky-600" /> {annonce.ville}
+              </p>
+
+              <div className="mt-5 flex items-center gap-3 border-t border-slate-100 pt-4">
+                <UserAvatar src={annonce.authorAvatar || annonce.avatar} name={annonce.author || annonce.nom} className="h-10 w-10 rounded-xl" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Publié par</p>
+                  <p className="truncate text-sm font-bold text-slate-800">{annonce.author || annonce.nom}</p>
                 </div>
               </div>
 
-              <div className="mb-3">
-                <span className="portal-badge">
-                  {annonce.type}
-                </span>
-              </div>
-
-              <p className="mb-4 text-sm leading-6 text-slate-600">
-                {annonce.desc}
-              </p>
-
-              <div className="mb-2 text-xl font-bold text-sky-700">
-                {annonce.prix} DH / mois
-              </div>
-
-              <p className="flex items-center gap-1.5 text-sm text-slate-500">
-                <Clock3 className="h-4 w-4" /> Il y a {annonce.posted} jours
+              <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-600">{annonce.desc}</p>
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+                <Clock3 className="h-4 w-4" /> Il y a {annonce.posted} jour{annonce.posted > 1 ? "s" : ""}
               </p>
 
               <button type="button" onClick={() => setSelectedAnnonce(annonce)} className="portal-primary-button mt-5 w-full">
@@ -270,6 +262,10 @@ export default function ColocationPage() {
             <div className="mt-6 pr-10">
               <span className="portal-badge">{selectedAnnonce.type}</span>
               <h2 id="housing-details-title" className="mt-3 text-2xl font-black text-slate-950">{selectedAnnonce.titre}</h2>
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                <UserAvatar src={selectedAnnonce.authorAvatar || selectedAnnonce.avatar} name={selectedAnnonce.author || selectedAnnonce.nom} className="h-11 w-11 rounded-xl" />
+                <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Publié par</p><p className="truncate font-black text-slate-900">{selectedAnnonce.author || selectedAnnonce.nom}</p></div>
+              </div>
               <p className="mt-3 text-sm leading-7 text-slate-600">{selectedAnnonce.desc}</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Loyer mensuel</p><p className="mt-1 text-xl font-black text-sky-700">{selectedAnnonce.prix} DH</p></div>

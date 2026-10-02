@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock3,
   Code2,
+  Dumbbell,
   ExternalLink,
   Flag,
   Handshake,
@@ -47,6 +48,7 @@ const iconMap = {
   rocket: Rocket,
   lightbulb: Lightbulb,
   heart: HandHeart,
+  sport: Dumbbell,
 };
 
 const themeMap = {
@@ -174,6 +176,7 @@ export default function ClubDetailsPage() {
       contactUrl: profile.contact_url || staticClub.contactUrl,
       contactLabel: profile.contact_label || staticClub.contactLabel,
       socials: listClubSocials(profile, staticClub.contactUrl),
+      logoUrl: profile.logo_url || "",
     };
   }, [managedContent, staticClub]);
 
@@ -269,7 +272,7 @@ export default function ClubDetailsPage() {
 
   if (!club) return <Navigate to="/clubs" replace />;
 
-  const Icon = iconMap[club.icon];
+  const Icon = iconMap[club.icon] || UsersRound;
   const theme = themeMap[club.accent];
   const currentStatus = application ? statusMap[application.status] : null;
 
@@ -318,9 +321,7 @@ export default function ClubDetailsPage() {
           <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_21rem] lg:items-end">
             <div>
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                <span className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl ring-1 ${theme.icon}`}>
-                  <Icon className="h-9 w-9" />
-                </span>
+                {club.logoUrl ? <img src={club.logoUrl} alt={`Logo de ${club.name}`} className="h-20 w-20 shrink-0 rounded-3xl border border-white/15 bg-white object-contain p-2 shadow-2xl" /> : <span className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl ring-1 ${theme.icon}`}><Icon className="h-9 w-9" /></span>}
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-sky-200 ring-1 ring-white/10">

@@ -171,7 +171,7 @@ export default function PublicProjectsPage() {
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent p-6 pt-20">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                   <div>
-                    <div className="flex items-center gap-2.5"><UserAvatar src={featuredProject.authorAvatar} name={featuredProject.author} className="h-8 w-8 rounded-lg ring-1 ring-white/20" /><p className="text-sm font-semibold text-cyan-300">{featuredProject.author}</p></div>
+                    <div className="flex items-center gap-2.5"><UserAvatar src={featuredProject.authorAvatar} name={featuredProject.author} className="h-8 w-8 rounded-lg ring-1 ring-white/20" /><p className="text-sm font-semibold text-cyan-300">Publié par {featuredProject.author}</p></div>
                     <h2 className="mt-1 text-2xl font-black">{featuredProject.title}</h2>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(featuredProject.tech_stack || []).slice(0, 4).map((tech) => (
@@ -247,7 +247,7 @@ export default function PublicProjectsPage() {
                   </div>
                   <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
                     <UserAvatar src={project.authorAvatar} name={project.author} className="h-7 w-7 rounded-lg" />
-                    <span className="truncate font-semibold text-slate-700">{project.author}</span>
+                    <span className="truncate font-semibold text-slate-700">Publié par {project.author}</span>
                     <span>·</span>
                     <CalendarDays className="h-3.5 w-3.5" />
                     <span>{project.academic_year || "Année non précisée"}</span>

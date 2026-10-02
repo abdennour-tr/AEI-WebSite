@@ -15,13 +15,17 @@ function clubName(club) {
   return Array.isArray(club) ? club[0]?.name : club?.name;
 }
 
+function clubLogo(club) {
+  return Array.isArray(club) ? club[0]?.logo_url : club?.logo_url;
+}
+
 export const publicFeedApi = {
   async list() {
     const [announcements, advertisements, events, clubEvents] = await Promise.all([
       rows(
         client()
           .from("club_announcements")
-          .select("id,club_id,title,body,published_at,created_at,club:club_profiles(name)")
+          .select("id,club_id,title,body,published_at,created_at,club:club_profiles(name,logo_url)")
           .eq("status", "published")
           .order("published_at", { ascending: false })
           .limit(20)
@@ -38,7 +42,7 @@ export const publicFeedApi = {
       rows(
         client()
           .from("events")
-          .select("id,title,description,starts_at,location,cover_url,organizer_name,club_id,club:club_profiles(name)")
+          .select("id,title,description,starts_at,location,cover_url,organizer_name,club_id,club:club_profiles(name,logo_url)")
           .eq("status", "published")
           .order("starts_at", { ascending: false })
           .limit(16)
@@ -46,7 +50,7 @@ export const publicFeedApi = {
       rows(
         client()
           .from("club_events")
-          .select("id,title,description,starts_at,location,club_id,club:club_profiles(name)")
+          .select("id,title,description,starts_at,location,club_id,club:club_profiles(name,logo_url)")
           .eq("status", "published")
           .order("starts_at", { ascending: false })
           .limit(16)
@@ -59,6 +63,7 @@ export const publicFeedApi = {
         kind: "announcement",
         label: "Actualité du club",
         author: clubName(item.club) || "Club AEI",
+        authorImage: clubLogo(item.club),
         title: item.title,
         description: item.body,
         publishedAt: item.published_at || item.created_at,
@@ -81,6 +86,7 @@ export const publicFeedApi = {
         kind: "event",
         label: "Événement à venir",
         author: item.organizer_name || clubName(item.club) || "AEI ENIADB",
+        authorImage: clubLogo(item.club),
         title: item.title,
         description: item.description,
         image: item.cover_url,
@@ -93,6 +99,7 @@ export const publicFeedApi = {
         kind: "event",
         label: "Événement de club",
         author: clubName(item.club) || "Club AEI",
+        authorImage: clubLogo(item.club),
         title: item.title,
         description: item.description,
         publishedAt: item.starts_at,

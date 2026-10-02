@@ -32,6 +32,17 @@ async function currentUser() {
 }
 
 export const clubAdminApi = {
+  async listProfiles() {
+    const { data } = await unwrap(
+      client()
+        .from("club_profiles")
+        .select("*")
+        .eq("status", "active")
+        .order("name", { ascending: true })
+    );
+    return data || [];
+  },
+
   async getAccess() {
     const user = await currentUser();
     const { data, error } = await client()

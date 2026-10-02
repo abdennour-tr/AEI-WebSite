@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { usePortalCollection } from "@/hooks/usePortalCollection";
+import { clubAdminApi } from "@/services/clubAdminApi";
 import logo from "../assets/AEI.png";
 
 const levels = [
@@ -65,48 +67,56 @@ const availabilities = [
 
 const clubMatches = {
   ai_data: {
+    id: "nurlai",
     name: "NurlAI",
     category: "IA & Data",
     reason: "Pour progresser en machine learning et data science sur des cas pratiques.",
     icon: BrainCircuit,
   },
   web_mobile: {
+    id: "innoverse",
     name: "InnoVerse",
     category: "Développement & innovation",
     reason: "Pour créer des applications, participer à des hackathons et rejoindre une équipe produit.",
     icon: Code2,
   },
   robotics_iot: {
+    id: "riot",
     name: "RIoT ENIADB",
     category: "Robotique & IoT",
     reason: "Pour concevoir des prototypes mêlant code, électronique et systèmes embarqués.",
     icon: Wifi,
   },
   cybersecurity: {
+    id: "secora",
     name: "SECORA Club",
     category: "Cybersécurité",
     reason: "Pour découvrir l’ethical hacking, l’OSINT et les entraînements CTF.",
     icon: ShieldCheck,
   },
   entrepreneurship: {
+    id: "enactus",
     name: "Enactus ENIAD Berkane",
     category: "Entrepreneuriat social",
     reason: "Pour transformer une idée en projet concret avec un impact positif.",
     icon: Lightbulb,
   },
   solidarity: {
+    id: "al-ataa",
     name: "Club Al Ataa",
     category: "Solidarité & citoyenneté",
     reason: "Pour contribuer aux actions bénévoles et solidaires de la communauté.",
     icon: HandHeart,
   },
   communication: {
+    id: "innoverse",
     name: "InnoVerse",
     category: "Création & communication",
     reason: "Pour valoriser des projets étudiants au sein d’un pôle média ou événementiel.",
     icon: Palette,
   },
   career: {
+    id: "techrise",
     name: "TechRise",
     category: "Innovation & carrière",
     reason: "Pour rencontrer des professionnels et développer votre réseau.",
@@ -142,6 +152,7 @@ function ChoiceCard({ selected, onClick, children, className = "" }) {
 
 export default function OnboardingPage() {
   const { user, profile, completeOnboarding, signOut } = useAuth();
+  const { data: managedProfiles } = usePortalCollection(clubAdminApi.listProfiles, []);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -162,14 +173,25 @@ export default function OnboardingPage() {
   const recommendations = useMemo(() => {
     const seen = new Set();
     return form.interests
-      .map((interest) => clubMatches[interest])
+      .map((interest) => {
+        const match = clubMatches[interest];
+        const managed = managedProfiles.find((club) => club.id === match?.id);
+        return match
+          ? {
+              ...match,
+              name: managed?.name || match.name,
+              category: managed?.category || match.category,
+              logoUrl: managed?.logo_url || "",
+            }
+          : null;
+      })
       .filter((club) => {
         if (!club || seen.has(club.name)) return false;
         seen.add(club.name);
         return true;
       })
       .slice(0, 3);
-  }, [form.interests]);
+  }, [form.interests, managedProfiles]);
 
   if (user?.user_metadata?.onboarding_completed) {
     return <Navigate to="/" replace />;
@@ -410,9 +432,13 @@ export default function OnboardingPage() {
                       const Icon = club.icon;
                       return (
                         <article key={club.name} className="flex gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-sm">
-                            <Icon className="h-5 w-5" />
-                          </span>
+                          {club.logoUrl ? (
+                            <img src={club.logoUrl} alt={`Logo de ${club.name}`} className="h-11 w-11 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1 shadow-sm" />
+                          ) : (
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-sm">
+                              <Icon className="h-5 w-5" />
+                            </span>
+                          )}
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="font-bold text-slate-950">{club.name}</h3>

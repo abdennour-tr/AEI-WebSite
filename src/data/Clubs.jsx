@@ -177,6 +177,56 @@ const clubs = [
     contactUrl:
       "https://www.linkedin.com/posts/ade-eniad_thankyoudonors-donateblood-savelives-activity-7298455580837306368-5LIT",
   },
+  {
+    id: "leo",
+    name: "Leo Club",
+    shortName: "LEO",
+    category: "Engagement & leadership",
+    icon: "heart",
+    accent: "amber",
+    tagline: "Servir la communauté, développer le leadership et agir ensemble.",
+    description:
+      "Le Leo Club rassemble les étudiants souhaitant mener des actions citoyennes, solidaires et utiles tout en développant leur esprit d’initiative et leur leadership.",
+    activities: [
+      "Actions citoyennes et solidaires",
+      "Développement du leadership",
+      "Campagnes de sensibilisation",
+      "Projets au service de la communauté",
+    ],
+    highlights: ["Service communautaire", "Leadership étudiant", "Actions solidaires"],
+    joinSteps: [
+      "Découvrir les actions et les pôles du club.",
+      "Présenter sa motivation et ses disponibilités.",
+      "Rejoindre une action ou une équipe d’organisation.",
+    ],
+    contactLabel: "Contacter le Leo Club",
+    contactUrl: null,
+  },
+  {
+    id: "club-sportif",
+    name: "Club Sportif",
+    shortName: "SPORT",
+    category: "Sport & bien-être",
+    icon: "sport",
+    accent: "emerald",
+    tagline: "Rassembler les étudiants par le sport, l’esprit d’équipe et le dépassement de soi.",
+    description:
+      "Le Club Sportif anime la vie sportive de l’ENIAD à travers des entraînements, des rencontres et des activités favorisant la santé, la cohésion et le fair-play.",
+    activities: [
+      "Entraînements et rencontres sportives",
+      "Tournois inter-promotions",
+      "Activités de bien-être",
+      "Sensibilisation à la santé par le sport",
+    ],
+    highlights: ["Tournois étudiants", "Esprit d’équipe", "Sport pour tous"],
+    joinSteps: [
+      "Choisir une activité ou une discipline sportive.",
+      "Indiquer son niveau et ses disponibilités.",
+      "Participer aux entraînements ou à l’organisation des rencontres.",
+    ],
+    contactLabel: "Contacter le Club Sportif",
+    contactUrl: null,
+  },
 ];
 
 const clubProfiles = {
@@ -271,13 +321,33 @@ const clubProfiles = {
       { title: "Réunion des nouveaux bénévoles", date: "Calendrier en préparation", location: "Campus ENIAD", type: "Rencontre" },
     ],
   },
+  leo: {
+    founded: "Club service & leadership",
+    recruitment: "Ouvert aux étudiants motivés par l’engagement associatif",
+    objectives: [
+      "Organiser des actions au service de la communauté.",
+      "Développer le leadership et la prise d’initiative.",
+      "Renforcer la solidarité et le travail en équipe.",
+    ],
+    upcomingEvents: [],
+  },
+  "club-sportif": {
+    founded: "Club sport & bien-être",
+    recruitment: "Ouvert à tous les niveaux et à toutes les disciplines",
+    objectives: [
+      "Encourager une pratique sportive accessible à tous.",
+      "Organiser des rencontres et activités sportives.",
+      "Développer la cohésion, le fair-play et le bien-être étudiant.",
+    ],
+    upcomingEvents: [],
+  },
 };
 
 const clubCatalog = clubs.map((club) => ({
   ...club,
   ...clubProfiles[club.id],
   testimonials: [],
-  socials: [{ label: "LinkedIn", url: club.contactUrl }],
+  socials: club.contactUrl ? [{ label: "LinkedIn", url: club.contactUrl }] : [],
 }));
 
 export default clubCatalog;

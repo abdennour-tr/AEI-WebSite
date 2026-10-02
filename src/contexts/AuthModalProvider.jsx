@@ -8,7 +8,7 @@ export function AuthModalProvider({ children }) {
   const [localRequest, setLocalRequest] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { configured, signIn } = useAuth();
+  const { configured, signInStudent } = useAuth();
   const routeRequest = location.state?.authModal || null;
   const request = localRequest || routeRequest;
 
@@ -47,7 +47,7 @@ export function AuthModalProvider({ children }) {
   return (
     <AuthModalContext.Provider value={{ openAuthModal, closeAuthModal }}>
       {children}
-      {request && <StudentAuthModal request={request} configured={configured} signIn={signIn} onClose={closeAuthModal} onAuthenticated={onAuthenticated} />}
+      {request && <StudentAuthModal request={request} configured={configured} signIn={signInStudent} onClose={closeAuthModal} onAuthenticated={onAuthenticated} />}
     </AuthModalContext.Provider>
   );
 }

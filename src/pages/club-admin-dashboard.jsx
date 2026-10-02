@@ -137,7 +137,7 @@ function ClubProfilePreview({ profile, dashboard }) {
         <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border border-white/10 bg-white/10 text-2xl font-black text-cyan-200">{(profile.name || "CL").slice(0, 2).toUpperCase()}</span>
+            {profile.logo_url ? <img src={profile.logo_url} alt={`Logo de ${profile.name || "ce club"}`} className="h-20 w-20 shrink-0 rounded-3xl border border-white/10 bg-white object-contain p-2 shadow-xl" /> : <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border border-white/10 bg-white/10 text-2xl font-black text-cyan-200">{(profile.name || "CL").slice(0, 2).toUpperCase()}</span>}
             <div>
               <span className="inline-flex rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-cyan-200">{profile.category || "Catégorie du club"}</span>
               <h3 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">{profile.name || "Nom du club"}</h3>
@@ -186,6 +186,10 @@ export default function ClubAdminDashboardPage() {
     social_links: createSocialLinksForm(access.club),
     objectives: (access.club.objectives || []).join("\n"),
   });
+  const [clubLogoFiles, setClubLogoFiles] = useState([]);
+  const [existingClubLogo, setExistingClubLogo] = useState(
+    access.club.logo_url ? [access.club.logo_url] : []
+  );
   const [eventForm, setEventForm] = useState(emptyEventForm);
   const [editingEvent, setEditingEvent] = useState(null);
   const [boardForm, setBoardForm] = useState(emptyBoardForm);
@@ -204,6 +208,15 @@ export default function ClubAdminDashboardPage() {
   const [announcementImageFiles, setAnnouncementImageFiles] = useState([]);
   const [notificationForm, setNotificationForm] = useState({ title: "", body: "" });
   const [showProfilePreview, setShowProfilePreview] = useState(false);
+  const clubLogoPreview = useMemo(() => {
+    if (clubLogoFiles[0]) return URL.createObjectURL(clubLogoFiles[0]);
+    return existingClubLogo[0] || "";
+  }, [clubLogoFiles, existingClubLogo]);
+
+  useEffect(() => {
+    if (!clubLogoPreview.startsWith("blob:")) return undefined;
+    return () => URL.revokeObjectURL(clubLogoPreview);
+  }, [clubLogoPreview]);
 
   const loadDashboard = async () => {
     const data = await clubAdminApi.getDashboard(access.club_id);
@@ -259,8 +272,13 @@ export default function ClubAdminDashboardPage() {
     setBusy(true);
     try {
       const socialLinks = cleanSocialLinks(profileForm.social_links);
+      const uploadedLogo = clubLogoFiles.length
+        ? await uploadPublicImages("club-media", clubLogoFiles)
+        : [];
+      const logoUrl = uploadedLogo[0] || existingClubLogo[0] || null;
       const updated = await clubAdminApi.updateProfile(access.club_id, {
         ...profileForm,
+        logo_url: logoUrl,
         social_links: socialLinks,
         contact_url: Object.values(socialLinks)[0] || null,
         objectives: profileForm.objectives
@@ -270,9 +288,17 @@ export default function ClubAdminDashboardPage() {
           .slice(0, 6),
       });
       setClub(updated);
+      setClubLogoFiles([]);
+      setExistingClubLogo(updated.logo_url ? [updated.logo_url] : []);
       setNotice({ type: "success", text: "La fiche publique du club a été mise à jour." });
-    } catch {
-      setNotice({ type: "error", text: "La fiche n’a pas pu être enregistrée." });
+    } catch (error) {
+      const permissionDenied = error?.code === "42501" || /permission denied|403/i.test(error?.message || "");
+      setNotice({
+        type: "error",
+        text: permissionDenied
+          ? "L’autorisation de modifier le logo n’est pas encore active dans Supabase. Exécutez de nouveau la migration 22, puis réessayez."
+          : "La fiche n’a pas pu être enregistrée.",
+      });
     } finally {
       setBusy(false);
     }
@@ -431,7 +457,11 @@ export default function ClubAdminDashboardPage() {
 
         <div className="mt-7 rounded-2xl border border-cyan-400/15 bg-gradient-to-br from-cyan-400/10 to-violet-500/10 p-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-400 text-sm font-black text-slate-950">{club.name.slice(0, 2).toUpperCase()}</span>
+            {club.logo_url ? (
+              <img src={club.logo_url} alt={`Logo de ${club.name}`} className="h-11 w-11 shrink-0 rounded-xl border border-white/10 bg-white object-contain p-1" />
+            ) : (
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400 text-sm font-black text-slate-950">{club.name.slice(0, 2).toUpperCase()}</span>
+            )}
             <div className="min-w-0"><p className="truncate text-sm font-bold">{club.name}</p><p className="mt-0.5 text-xs text-cyan-200">{access.manager_role === "president" ? "Présidence" : "Responsable"}</p></div>
           </div>
         </div>
@@ -526,8 +556,20 @@ export default function ClubAdminDashboardPage() {
               {activeSection === "profile" && (
                 <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
                   <PanelTitle eyebrow="Contenu public" title="Gérer la fiche du club" description={`Les modifications enregistrées apparaîtront dans l’espace public de ${club.name}.`} action={<button type="button" onClick={() => setShowProfilePreview((visible) => !visible)} className="portal-secondary-button">{showProfilePreview ? <X className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {showProfilePreview ? "Fermer l’aperçu" : "Prévisualiser"}</button>} />
-                  {showProfilePreview && <ClubProfilePreview profile={profileForm} dashboard={dashboard} />}
+                  {showProfilePreview && <ClubProfilePreview profile={{ ...profileForm, logo_url: clubLogoPreview }} dashboard={dashboard} />}
                   <form onSubmit={saveProfile} className="mt-8 grid gap-5 lg:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 lg:col-span-2 sm:p-5">
+                      <ImageUploadField
+                        files={clubLogoFiles}
+                        onFilesChange={setClubLogoFiles}
+                        existingUrls={existingClubLogo}
+                        onExistingUrlsChange={setExistingClubLogo}
+                        maxFiles={1}
+                        label="Logo du club"
+                        help="Image carrée recommandée — JPG, PNG ou WebP, 8 Mo maximum"
+                      />
+                      <p className="mt-3 text-xs leading-5 text-slate-500">Ce logo remplacera l’icône générée dans la fiche publique et l’annuaire des clubs après l’enregistrement.</p>
+                    </div>
                     <label className="block"><span className="mb-2 block text-sm font-bold">Nom du club</span><input className="portal-input" value={profileForm.name} onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })} required /></label>
                     <label className="block"><span className="mb-2 block text-sm font-bold">Catégorie</span><input className="portal-input" value={profileForm.category} onChange={(event) => setProfileForm({ ...profileForm, category: event.target.value })} required /></label>
                     <label className="block lg:col-span-2"><span className="mb-2 block text-sm font-bold">Phrase d’accroche</span><input className="portal-input" value={profileForm.tagline} onChange={(event) => setProfileForm({ ...profileForm, tagline: event.target.value })} required /></label>

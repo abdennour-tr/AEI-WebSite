@@ -39,7 +39,7 @@ function normalizeProject(row, context = {}) {
     desc: row.description,
     tech: row.tech_stack?.join(" / ") || "",
     updated: formatDate(row.updated_at),
-    author: context.names?.get(row.owner_id) || row.author || "Étudiant ENIAD",
+    author: context.names?.get(row.owner_id) || row.author || "Nom non renseigné",
     authorAvatar: context.avatars?.get(row.owner_id) || "",
     team_members: team,
     screenshot_urls: row.screenshot_urls || [],
@@ -199,7 +199,7 @@ export const studentProjectsApi = {
     const profileMap = new Map(profiles.map((profile) => [profile.user_id, profile]));
     return comments.map((comment) => ({
       ...comment,
-      author: profileMap.get(comment.author_id)?.display_name || "Membre AEI",
+      author: profileMap.get(comment.author_id)?.display_name || "Nom non renseigné",
       avatarUrl: profileMap.get(comment.author_id)?.avatar_url || "",
       date: formatDate(comment.created_at),
     }));

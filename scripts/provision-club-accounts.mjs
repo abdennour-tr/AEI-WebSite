@@ -18,6 +18,8 @@ const accounts = [
   ["techrise_aei@enaid.ump.ma", "techrise", "TechRise"],
   ["enactus_aei@enaid.ump.ma", "enactus", "Enactus ENIAD Berkane"],
   ["alataa_aei@enaid.ump.ma", "al-ataa", "Club Al Ataa"],
+  ["leo_aei@enaid.ump.ma", "leo", "Leo Club"],
+  ["sportif_aei@enaid.ump.ma", "club-sportif", "Club Sportif"],
   ["aei_eniadb@enaid.ump.ma", "aei-eniadb", "AEI ENIADB"],
 ];
 
@@ -42,7 +44,7 @@ const { data: configuredClubs, error: clubsError } = await supabase
   .in("id", accounts.map(([, clubId]) => clubId));
 if (clubsError) throw clubsError;
 if ((configuredClubs || []).length !== accounts.length) {
-  throw new Error("Les huit profils Clubs ne sont pas encore présents. Réexécutez la migration 16.");
+  throw new Error("Tous les profils Clubs ne sont pas encore présents. Exécutez les migrations 16 et 21.");
 }
 
 async function findUser(email) {
@@ -82,7 +84,7 @@ for (const [email, clubId, clubName] of accounts) {
   if (managerError) throw managerError;
 }
 
-console.log("Les huit comptes responsables sont prêts.");
+console.log(`Les ${accounts.length} comptes responsables sont prêts.`);
 if (createdCredentials.length) {
   console.log("\nIdentifiants temporaires créés — à transmettre séparément puis à remplacer :");
   console.table(createdCredentials);

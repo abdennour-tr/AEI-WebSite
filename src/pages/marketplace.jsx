@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState";
 import ReportButton from "@/components/ReportButton";
 import ImageUploadField from "@/components/ImageUploadField";
 import { uploadPublicImages } from "@/services/storageApi";
+import UserAvatar from "@/components/UserAvatar";
 
 const emptyProductForm = {
   title: "",
@@ -251,26 +252,27 @@ export default function MarketPlacePage() {
               </button>
             </div>
 
-            <div className="p-5 sm:p-6">
-              <h2 className="mb-1 text-lg font-bold text-slate-950">
-                {p.titre}
-              </h2>
-
-              <p className="mb-3 text-sm text-slate-500">
-                {p.ville}
-              </p>
-
-              <span className="portal-badge">
-                {p.categorie}
-              </span>
-
-              <p className="mt-4 text-sm text-slate-600">{p.etat}</p>
-
-              <div className="mt-2 text-2xl font-bold text-sky-700">
-                {p.prix} DH
+            <div className="flex h-full flex-col p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <span className="portal-badge">{p.categorie}</span>
+                <span className="text-xs font-semibold text-slate-500">{p.etat}</span>
               </div>
 
-              <p className="mt-1 text-xs text-slate-500">{p.date}</p>
+              <h2 className="mt-4 text-xl font-black leading-snug text-slate-950">{p.titre}</h2>
+              <div className="mt-2 text-2xl font-black text-sky-700">{p.prix} DH</div>
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
+                <MapPin className="h-4 w-4 text-sky-600" /> {p.ville}
+              </p>
+
+              <div className="mt-5 flex items-center gap-3 border-t border-slate-100 pt-4">
+                <UserAvatar src={p.authorAvatar} name={p.author} className="h-10 w-10 rounded-xl" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Publié par</p>
+                  <p className="truncate text-sm font-bold text-slate-800">{p.author}</p>
+                </div>
+              </div>
+
+              <p className="mt-3 text-xs text-slate-500">{p.date}</p>
 
               <button type="button" onClick={() => setSelectedProduct(p)} className="portal-primary-button mt-5 w-full">
                 <ShoppingCart size={18} />
@@ -329,6 +331,10 @@ export default function MarketPlacePage() {
             <div className="mt-6 pr-10">
               <span className="portal-badge">{selectedProduct.categorie}</span>
               <h2 id="product-details-title" className="mt-3 text-2xl font-black text-slate-950">{selectedProduct.titre}</h2>
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                <UserAvatar src={selectedProduct.authorAvatar} name={selectedProduct.author} className="h-11 w-11 rounded-xl" />
+                <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Publié par</p><p className="truncate font-black text-slate-900">{selectedProduct.author}</p></div>
+              </div>
               <p className="mt-3 text-sm leading-7 text-slate-600">{selectedProduct.description || "Aucune description supplémentaire."}</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Prix</p><p className="mt-1 text-xl font-black text-sky-700">{selectedProduct.prix} DH</p></div>
